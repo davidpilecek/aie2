@@ -12,7 +12,7 @@ marker_id = 0  # ID can range based on the dictionary chosen
 marker_size = 200  # Size of the marker in pixels
 
 # Generate the marker
-marker_image = aruco.generateImageMarker()(dictionary, marker_id, marker_size)
+marker_image = aruco.generateImageMarker(dictionary, marker_id, marker_size)
 
 # Save the marker as an image file
 cv2.imwrite("pics/aruco_marker.png", marker_image)
