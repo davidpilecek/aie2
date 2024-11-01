@@ -1,53 +1,21 @@
-# import the necessary packages
-import numpy as np
-import argparse
 import cv2
-import sys
+import cv2.aruco as aruco
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-o", "--output", required=True,
-	help="path to output image containing ArUCo tag")
-ap.add_argument("-i", "--id", type=int, required=True,
-	help="ID of ArUCo tag to generate")
-ap.add_argument("-t", "--type", type=str,
-	default="DICT_ARUCO_ORIGINAL",
-	help="type of ArUCo tag to generate")
-args = vars(ap.parse_args())
+# Define the dictionary (size and ID for the marker)
+# Common dictionaries: DICT_4X4_50, DICT_5X5_100, DICT_6X6_250, DICT_7X7_1000
+aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
 
-ARUCO_DICT = {
-	"DICT_4X4_50": cv2.aruco.DICT_4X4_50,
-	"DICT_4X4_100": cv2.aruco.DICT_4X4_100,
-	"DICT_4X4_250": cv2.aruco.DICT_4X4_250,
-	"DICT_4X4_1000": cv2.aruco.DICT_4X4_1000,
-	"DICT_5X5_50": cv2.aruco.DICT_5X5_50,
-	"DICT_5X5_100": cv2.aruco.DICT_5X5_100,
-	"DICT_5X5_250": cv2.aruco.DICT_5X5_250,
-	"DICT_5X5_1000": cv2.aruco.DICT_5X5_1000,
-	"DICT_6X6_50": cv2.aruco.DICT_6X6_50,
-	"DICT_6X6_100": cv2.aruco.DICT_6X6_100,
-	"DICT_6X6_250": cv2.aruco.DICT_6X6_250,
-	"DICT_6X6_1000": cv2.aruco.DICT_6X6_1000,
-	"DICT_7X7_50": cv2.aruco.DICT_7X7_50,
-	"DICT_7X7_100": cv2.aruco.DICT_7X7_100,
-	"DICT_7X7_250": cv2.aruco.DICT_7X7_250,
-	"DICT_7X7_1000": cv2.aruco.DICT_7X7_1000,
-	"DICT_ARUCO_ORIGINAL": cv2.aruco.DICT_ARUCO_ORIGINAL,
-	"DICT_APRILTAG_16h5": cv2.aruco.DICT_APRILTAG_16h5,
-	"DICT_APRILTAG_25h9": cv2.aruco.DICT_APRILTAG_25h9,
-	"DICT_APRILTAG_36h10": cv2.aruco.DICT_APRILTAG_36h10,
-	"DICT_APRILTAG_36h11": cv2.aruco.DICT_APRILTAG_36h11
-}
+# Specify the ID and size of the marker
+marker_id = 0  # ID can range based on the dictionary chosen
+marker_size = 200  # Size of the marker in pixels
 
-# load the ArUCo dictionary
-arucoDict = cv2.aruco.Dictionary_get(ARUCO_DICT[args["type"]])
+# Generate the marker
+marker_image = aruco.drawMarker(aruco_dict, marker_id, marker_size)
 
-print("[INFO] generating ArUCo tag type '{}' with ID '{}'".format(
-	args["type"], args["id"]))
-tag = np.zeros((300, 300, 1), dtype="uint8")
-cv2.aruco.drawMarker(arucoDict, args["id"], 300, tag, 1)
-# write the generated ArUCo tag to disk and then display it to our
-# screen
-cv2.imwrite(args["output"], tag)
-cv2.imshow("ArUCo Tag", tag)
+# Save the marker as an image file
+cv2.imwrite("pics/aruco_marker.png", marker_image)
+
+# Display the generated marker (optional)
+cv2.imshow("Aruco Marker", marker_image)
 cv2.waitKey(0)
-
+cv2.destroyAllWindows()
