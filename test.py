@@ -1,17 +1,13 @@
-import cv2
-import cv2.aruco as aruco
-import numpy as np
+#!/usr/bin/env python3
+import serial
+import time
 
+if __name__ == '__main__':
+    ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+    ser.reset_input_buffer()
 
-#IMAGE
-image_orig = cv2.VideoCapture(0)
-image_scaled = cv2.resize(image_orig, (300, 300))
-image_grayscale = cv2.cvtColor(image_scaled, cv2.COLOR_BGR2GRAY)
-
-while True:
-    ret, frame = image_orig.read()
-    cv2.imshow("Frame", frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cv2.destroyAllWindows()
+    while True:
+        ser.write(b"0")
+        line = ser.readline().decode('utf-8').rstrip()
+        print(line)
+        time.sleep(1)
