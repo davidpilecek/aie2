@@ -1,23 +1,17 @@
 import cv2
 import cv2.aruco as aruco
+import numpy as np
 
-# Define the dictionary (size and ID for the marker)
-# Common dictionaries: DICT_4X4_50, DICT_5X5_100, DICT_6X6_250, DICT_7X7_1000
-#aruco_dict = aruco.Dictionary_get(aruco.DICT_4X4_50)
 
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+#IMAGE
+image_orig = cv2.VideoCapture(0)
+image_scaled = cv2.resize(image_orig, (300, 300))
+image_grayscale = cv2.cvtColor(image_scaled, cv2.COLOR_BGR2GRAY)
 
-# Specify the ID and size of the marker
-marker_id = 0  # ID can range based on the dictionary chosen
-marker_size = 200  # Size of the marker in pixels
+while True:
+    ret, frame = image_orig.read()
+    cv2.imshow("Frame", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-# Generate the marker
-marker_image = aruco.generateImageMarker(dictionary, marker_id, marker_size)
-
-# Save the marker as an image file
-cv2.imwrite("pics/aruco_marker.png", marker_image)
-
-# Display the generated marker (optional)
-cv2.imshow("Aruco Marker", marker_image)
-cv2.waitKey(0)
 cv2.destroyAllWindows()
