@@ -1,4 +1,3 @@
-
 import cv2
 import cv2.aruco as aruco
 import numpy as np
@@ -12,7 +11,6 @@ image_grayscale = cv2.cvtColor(image_scaled, cv2.COLOR_BGR2GRAY)
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 detectorParams = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
-# Specify the ID and size of the marker
 
 
 corners, ids, rejectedImgPoints = detector.detectMarkers(image_orig)

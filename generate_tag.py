@@ -16,10 +16,10 @@ marker_size = 300  # Size of the marker in pixels
 marker_image = cv2.aruco.generateImageMarker(aruco_dict, marker_id, marker_size)
 
 
-final_image = cv2.copyMakeBorder(marker_image, 100, 5,75, 45, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+final_image = cv2.copyMakeBorder(marker_image, 25, 25, 25, 25 , cv2.BORDER_CONSTANT, value=[255, 255, 255])
 
 # Save the marker as an image file
-cv2.imwrite("pics/aruco_marker.png", final_image)
+cv2.imwrite("pics/aruco_marker1.png", final_image)
 
 # Display the generated marker (optional)
 cv2.imshow("Aruco Marker", marker_image)
