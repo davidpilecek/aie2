@@ -1,23 +1,24 @@
 import numpy as np
 import cv2
- 
+from picamera2 import Picamera2
+
+picam2 = Picamera2()
+picam2.configure(picam2.create_video_configuration())
+
+# Start the camera
+picam2.start()
+
 #ARUCO
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 detectorParams = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 
-cap = cv2.VideoCapture(0)
-if not cap.isOpened():
-    print("Cannot open camera")
-    exit()
+
+
 while True:
     # Capture frame-by-frame
-    ret, frame = cap.read()
+    frame = picam2.capture_array()
  
-    # if frame is read correctly ret is True
-    if not ret: 
-        print("Can't receive frame (stream end?). Exiting ...")
-        break
     # Our operations on the frame come here
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
@@ -26,7 +27,7 @@ while True:
     
     if ids is not None:
         ids = ids.flatten()
-        frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids, borderColor=(255, 0, 0))
+        #frame = cv2.aruco.drawDetectedMarkers(frame, corners, ids, borderColor=(255, 0, 0))
     
         centre_x1 = (int(corners[0][0][0][0])+int(corners[0][0][1][0]))/2
         centre_x2 = (int(corners[0][0][2][0])+int(corners[0][0][3][0]))/2
@@ -46,5 +47,5 @@ while True:
         break
 
 # When everything done, release the capture
-cap.release()
+picam2.stop()
 cv2.destroyAllWindows()
