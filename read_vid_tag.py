@@ -7,6 +7,7 @@ dimensions = (640, 480)
 centre_of_frame = (int(dimensions[0]/2),int(dimensions[1]/2))
 margin = 50
 color_of_center = (0,0,255)
+centered = False
 
 #ARUCO
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -16,7 +17,10 @@ detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 cap = cv2.VideoCapture(0)
 
 while True:
-    
+    if centered:
+	    color_of_center = (0,255,0)
+    else:
+        color_of_center = (0,0,255)
     ret, frame = cap.read()
     frame = cv2.resize(frame, dimensions)
 	# if frame is read correctly ret is True
@@ -42,14 +46,19 @@ while True:
         centre_y = int((centre_y1+centre_y2)/2) 
         centre = (centre_x, centre_y)
         
-        if centre_x1 > centre_of_frame[0] - margin and centre_x2 < centre_of_frame[0] + margin and centre_y1 > centre_of_frame[1] - margin and centre_y2 < centre_of_frame[1] + margin:
-            color_of_center = (0,255,0)
+        if centre_x > centre_of_frame[0] - margin and centre_x < centre_of_frame[0] + margin and centre_y > centre_of_frame[1] - margin and centre_y < centre_of_frame[1] + margin:
+            centered = True
+        else:
+			centered = False
+
+            
 			
         print(centre)
         
         cv2.putText(frame, ".", centre, cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
         
-		
+    else:
+        centered = False
     cv2.imshow('frame', frame)
     if cv2.waitKey(1) == ord('q'):
         break
