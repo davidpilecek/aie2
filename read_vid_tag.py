@@ -43,7 +43,7 @@ while True:
         centre = (centre_x, centre_y)
         
         if centre_x1 > centre_of_frame[0] - margin and centre_x2 < centre_of_frame[0] + margin and centre_y1 > centre_of_frame[1] - margin and centre_y2 < centre_of_frame[1] + margin:
-				color_of_center = (0,255,0)
+            color_of_center = (0,255,0)
 			
         print(centre)
         
