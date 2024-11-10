@@ -16,11 +16,18 @@ detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 
 cap = cv2.VideoCapture(0)
 
+ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+ser.reset_input_buffer()
+
 while True:
+
+    
     if centered:
 	    color_of_center = (0,255,0)
+	    ser.write(str(2).encode('utf-8'))
     else:
         color_of_center = (0,0,255)
+        ser.write(str(1).encode('utf-8'))
     ret, frame = cap.read()
     frame = cv2.resize(frame, dimensions)
 	# if frame is read correctly ret is True
@@ -49,7 +56,7 @@ while True:
         if centre_x > centre_of_frame[0] - margin and centre_x < centre_of_frame[0] + margin and centre_y > centre_of_frame[1] - margin and centre_y < centre_of_frame[1] + margin:
             centered = True
         else:
-			centered = False
+            centered = False
 
             
 			
