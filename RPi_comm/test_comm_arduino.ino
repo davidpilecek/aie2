@@ -16,40 +16,6 @@ byte speed = 100;
 const byte motorPins[] = {FRA, FRB, FLB, FLA, RRA, RRB, RLB, RLA};
 
 
-
-void setup() {
-for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
-  
-  Serial.begin(9600);
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, 0);
-  
-  
-}
-
-void loop() {
- 
-  if (Serial.available() > 0) {
-    byte led_status = Serial.read()-'0';
-    
-    switch(led_status){
-
-      case 1:
-        stop_all();
-        break;
-      case 2:
-        spin_all(speed);
-        break;
-      default:
-      break;
-      }
-    
-    
-    
-  }
-}
-
-
 void spin(byte speed, byte index){
 
 analogWrite(motorPins[index], speed);
@@ -79,3 +45,81 @@ analogWrite(motorPins[i], 0);
 }
 
 };
+
+int numbers[4];
+
+void setup() {
+for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
+  
+  Serial.begin(9600);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, 0);
+  
+}
+
+void loop() {
+ 
+  if (Serial.available() >= 4) {
+    
+    
+  for (int i = 0; i < 4; i++) {
+            numbers[i] = Serial.read();
+        }
+
+    
+    switch(numbers[0]){
+
+      case 0:
+        Serial.write(numbers[0]);
+        stop_all();
+        break;
+      case 1:
+        Serial.write(numbers[0]);
+        spin_all(speed);
+        break;
+      default:
+      break;
+      }   
+     
+     switch(numbers[1]){
+
+      case 10:
+        Serial.write(numbers[1]);
+        stop_all();
+        break;
+      case 11:
+        Serial.write(numbers[1]);
+        spin_all(speed);
+        break;
+      default:
+      break;
+      }   
+    switch(numbers[2]){
+
+      case 20:
+        Serial.write(numbers[2]);
+        stop_all();
+        break;
+      case 21:
+        Serial.write(numbers[2]);
+        spin_all(speed);
+        break;
+      default:
+      break;
+      }  
+      switch(numbers[3]){
+
+      case 30:
+        Serial.write(numbers[3]);
+        stop_all();
+        break;
+      case 31:
+        Serial.write(numbers[3]);
+        spin_all(speed);
+        break;
+      default:
+      break;
+      }  
+  }
+  
+}

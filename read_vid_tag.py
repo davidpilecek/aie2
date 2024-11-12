@@ -4,9 +4,9 @@ import serial
 import time
 from config import *
 
+centre_of_frame = (int(FRAME_DIMENSIONS[0]/2),int(FRAME_DIMENSIONS[1]/2))
 
-centre_of_frame = (int(frame_dimensions[0]/2),int(frame_dimensions[1]/2))
-
+centered = False
 
 #ARUCO
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -15,18 +15,25 @@ detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 
 cap = cv2.VideoCapture(0)
 
+data_array = [0, 10, 20, 30]
 ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
 ser.reset_input_buffer()
+time.sleep(2)
 
 while True:
     if centered:
-	    color_of_center = (0,255,0)
-        ser.write(str(2).encode('utf-8'))
-    else:
+        color_of_center = (0,255,0)
+        data_array = [1, 11, 21, 31]
+    elif not centered:
         color_of_center = (0,0,255)
-        ser.write(str(1).encode('utf-8'))
+        data_array = [0, 10, 20, 30]
+
+        num_read = ser.read()
+        print(int.from_bytes(num_read, byteorder = 'big'))
+    
+    ser.write(bytes(data_array))
     ret, frame = cap.read()
-    frame = cv2.resize(frame, frame_dimensions)
+    frame = cv2.resize(frame, FRAME_DIMENSIONS)
 	# if frame is read correctly ret is True
     if not ret:
         print("Can't receive frame (stream end?). Exiting ...")
@@ -66,5 +73,6 @@ while True:
         break
 
 # When everything done, release the capture
+data_array = [0, 10, 20, 30]
 cap.release()
 cv2.destroyAllWindows()

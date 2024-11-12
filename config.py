@@ -12,6 +12,6 @@ LINE_SEEKING_PORTION = 60
 
 MARGIN_OF_CENTER = 50
 
-centered = False
+
 
 
