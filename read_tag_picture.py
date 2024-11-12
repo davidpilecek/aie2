@@ -1,6 +1,7 @@
 import cv2
 import cv2.aruco as aruco
 import numpy as np
+from config import *
 
 #IMAGE
 image_orig = cv2.imread(r"pics\aruco_marker.png")
@@ -8,7 +9,7 @@ image_scaled = cv2.resize(image_orig, (300, 300))
 image_grayscale = cv2.cvtColor(image_scaled, cv2.COLOR_BGR2GRAY)
 
 #ARUCO
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+dictionary = cv2.aruco.getPredefinedDictionary(ARUCO_DICT_CONFIG)
 detectorParams = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 
