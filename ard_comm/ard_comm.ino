@@ -1,40 +1,40 @@
 //front right wheel
-const byte FRA = 5; //BIA
-const byte FRB = 2; //BIB
+const byte FRA = 5; //B1A right
+const byte FRB = 2; //B2A right
 //rear right wheel
-const byte RRA = 11; //AIA right
-const byte RRB = 9; //AIB right
+const byte RRA = 9; //A1B right
+const byte RRB = 11; //A1A right
 //rear left wheel
-const byte RLA = 12; // B2A left
-const byte RLB = 10; // BIA left
+const byte RLA = 10; // B1A left
+const byte RLB = 12; // B2A left
 //front left wheel
-const byte FLA = 3; //AIA left
-const byte FLB = 6; //AIB left
+const byte FLA = 6; //A1B left
+const byte FLB = 3; //A1A left
 
 byte speed = 100;
 
-const byte motorPins[] = {FRA, FRB, FLB, FLA, RRA, RRB, RLB, RLA};
+const byte motorPins[] = {FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB};
 
+void spin(byte speed, byte mot_num){
 
-void spin(byte speed, byte index){
-
-analogWrite(motorPins[index], speed);
-analogWrite(motorPins[index + 1], 0);
+analogWrite(motorPins[mot_num], speed);
+analogWrite(motorPins[mot_num + 4], 0);
 
 }
 
 void spin_all(byte speed){
 
 analogWrite(motorPins[0], speed);
-analogWrite(motorPins[1], 0);
-analogWrite(motorPins[2], speed);
-analogWrite(motorPins[3], 0);
-analogWrite(motorPins[4], speed);
+analogWrite(motorPins[4], 0);
+analogWrite(motorPins[1], speed);
 analogWrite(motorPins[5], 0);
-analogWrite(motorPins[6], speed);
+analogWrite(motorPins[2], speed);
+analogWrite(motorPins[6], 0);
+analogWrite(motorPins[3], speed);
 analogWrite(motorPins[7], 0);
 
 }
+
 
 void stop_all(){
 
@@ -54,8 +54,10 @@ for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, 0);
-  
-}
+
+  spin_all(speed);
+  delay(1000);
+  stop_all();
 
 void loop() {
  
