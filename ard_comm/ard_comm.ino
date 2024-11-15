@@ -11,7 +11,7 @@ const byte RLB = 12; // B2A left
 const byte FLA = 6; //A1B left
 const byte FLB = 3; //A1A left
 
-byte speed = 100;
+byte SPEED = 100;
 
 const byte motorPins[] = {FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB};
 
@@ -35,7 +35,6 @@ analogWrite(motorPins[7], 0);
 
 }
 
-
 void stop_all(){
 
 for(byte i = 0;i<sizeof(motorPins);i++){
@@ -52,17 +51,15 @@ void setup() {
 for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
   
   Serial.begin(9600);
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, 0);
-
-  spin_all(speed);
-  delay(1000);
-  stop_all();
+/*
+spin(100, 1);
+delay(500);
+stop_all();
+*/
 }
 void loop() {
  
   if (Serial.available() >= 4) {
-    
     
   for (int i = 0; i < 4; i++) {
             numbers[i] = Serial.read();
@@ -77,7 +74,8 @@ void loop() {
         break;
       case 1:
         Serial.write(numbers[0]);
-        spin_all(speed);
+        spin(SPEED, 0);
+        delay(500);
         break;
       default:
       break;
@@ -91,7 +89,7 @@ void loop() {
         break;
       case 11:
         Serial.write(numbers[1]);
-        spin_all(speed);
+        spin(SPEED, 1);
         break;
       default:
       break;
@@ -104,7 +102,7 @@ void loop() {
         break;
       case 21:
         Serial.write(numbers[2]);
-        spin_all(speed);
+        spin(SPEED, 2);
         break;
       default:
       break;
@@ -117,7 +115,7 @@ void loop() {
         break;
       case 31:
         Serial.write(numbers[3]);
-        spin_all(speed);
+        spin(SPEED, 3);
         break;
       default:
       break;
