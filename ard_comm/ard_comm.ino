@@ -58,7 +58,7 @@ for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
   spin_all(speed);
   delay(1000);
   stop_all();
-
+}
 void loop() {
  
   if (Serial.available() >= 4) {
