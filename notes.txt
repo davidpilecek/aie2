@@ -1,0 +1,4 @@
+method 1: 
+    calculate speed from angle of road
+    use PID for offset
+
