@@ -9,13 +9,13 @@ if __name__ == '__main__':
     time.sleep(2)
 
     while True:
-        #print(str(led_number).encode('utf-8'))
-        for i in range(100):
+        for i in range(40, 255):
             data_array = [i, i, i, i]
             print(data_array)
-            time.sleep(0.02)
+            time.sleep(0.01)
             ser.write(bytes(data_array))
             num_read = ser.read()
             print(int.from_bytes(num_read, byteorder = 'big'))
     
-    ser.write(bytes(zeros_array))
+        ser.write(bytes(zeros_array))
+        quit()

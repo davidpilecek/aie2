@@ -2,12 +2,24 @@ import numpy as np
 import cv2
 from picamera2 import Picamera2
 from config import *
+import serial
+import time
+
 
 picam2 = Picamera2()
 picam2.configure(picam2.create_video_configuration())
 
 # Start the camera
 picam2.start()
+
+max_pwm = 100
+
+data_array = []
+zeros_array = [0, 0, 0, 0]
+
+ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+ser.reset_input_buffer()
+time.sleep(2)
 
 while True:
     # Capture frame
@@ -54,7 +66,7 @@ while True:
             line_angle = np.degrees(np.arctan(np.abs(vy)/vx))
         else:
             line_angle = 90
-
+        line_angle = round(line_angle, 1)
         print(f"line_angle: {line_angle}")
 
         cv2.line(frame_draw,(HEIGHT_OF_IMAGE-1,righty),(0,lefty),(0,255,255),5)
@@ -67,13 +79,17 @@ while True:
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
             center_of_mass = (round(cX/WIDTH_OF_IMAGE, 2), round(cY/HEIGHT_OF_IMAGE, 2))
-            offset = center_of_mass[0] - 0.5
+            offset = round(center_of_mass[0] - 0.5, 2)
             cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
             cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
         print(f"contour offset: {offset}")
     else:
         pass
-        
+    speed_L = int(max_pwm  + offset * 50) #adjust for line angle
+    speed_R = int(max_pwm  - offset * 50)
+    data_array = [speed_R, speed_L, speed_R, speed_L]
+    ser.write(bytes(data_array))
+    
     # Display the resulting frame
     cv2.imshow('frame', frame)
     
@@ -83,4 +99,4 @@ while True:
 # When everything done, release the capture
 picam2.stop()
 cv2.destroyAllWindows()
-
+ser.write(bytes([0,0,0,0]))

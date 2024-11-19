@@ -45,32 +45,33 @@ analogWrite(motorPins[i], 0);
 
 };
 
-int numbers[4] = {0, 0, 0, 0};
+int numbers[4];
 
 void setup() {
-  
 for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
-Serial.begin(9600);
-
+  
+  Serial.begin(9600);
+/*
+spin(100, 1);
+delay(500);
+stop_all();
+*/
 }
-
 void loop() {
-  
-Serial.write(numbers[0]);
-
-if (Serial.available() >= 4) {
+ 
+  if (Serial.available() >= 4) {
     
- for (int i = 0; i < 4; i++) {
-  numbers[i] = Serial.read();      
- }
-  
- for (int j = 0; j < 4; j++) {
-  spin(numbers[j], j);
- }
+  for (int i = 0; i < 4; i++) {
+            numbers[i] = Serial.read();      
   }
-
-
-
-
+  
+  Serial.write(numbers[0]);
+  for (int j = 0; j < 4; j++) {
+            
+            spin(numbers[j], j);
+  }
+  
+   
+  }
   
 }
