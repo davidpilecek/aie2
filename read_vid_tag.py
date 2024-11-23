@@ -15,23 +15,12 @@ detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 
 cap = cv2.VideoCapture(0)
 
-data_array = [0, 10, 20, 30]
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-ser.reset_input_buffer()
-time.sleep(2)
-
 while True:
     if centered:
         color_of_center = (0,255,0)
-        data_array = [1, 11, 21, 31]
     elif not centered:
         color_of_center = (0,0,255)
-        data_array = [0, 10, 20, 30]
 
-        num_read = ser.read()
-        print(int.from_bytes(num_read, byteorder = 'big'))
-    
-    ser.write(bytes(data_array))
     ret, frame = cap.read()
     frame = cv2.resize(frame, FRAME_DIMENSIONS)
 	# if frame is read correctly ret is True

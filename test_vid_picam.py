@@ -13,6 +13,7 @@ while True:
     # Capture frame-by-frame
     frame = picam2.capture_array()
     frame = cv2.resize(frame, FRAME_DIMENSIONS)
+    frame = cv2.flip(frame, -1)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB )
     
     # Our operations on the frame come here

@@ -90,7 +90,6 @@ byte speed_spin = 12;
 void setup() {
 SoftPWMBegin();
 
-pinMode(13, OUTPUT);
   
 for(byte i = 0;i<sizeof(motorPins);i++){pinMode(motorPins[i], OUTPUT);};
 
@@ -105,13 +104,13 @@ delay(1000);
 stop_all();
 delay(500);
 
-slide_left(speed_spin);
+slide_left(15);
 delay(1000);
 
 stop_all();
 delay(500);
 
-slide_right(speed_spin);
+slide_right(15);
 delay(1000);
 stop_all();
 
