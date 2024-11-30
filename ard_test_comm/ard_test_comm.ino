@@ -19,13 +19,6 @@ const byte FLB = 3; //A1A left
 
 const byte motorPins[] = {FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB};
 
-void spin(byte speed_drive, byte mot_num){
-
-SoftPWMSetPercent(motorPins[mot_num], speed_drive);
-SoftPWMSetPercent(motorPins[mot_num + 4], 0);
-
-}
-
 int numbers[8];
 
 void setup() {
