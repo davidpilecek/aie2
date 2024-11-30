@@ -3,7 +3,7 @@ import time
 
 zeros_array = [0, 0, 0, 0, 0, 0, 0, 0]
 
-#FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB
+#arduino pinout: FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB
 
 def drive_straight(speed_drive, serial_port):
     data_array = [speed_drive, speed_drive, speed_drive, speed_drive, 0, 0, 0, 0]
