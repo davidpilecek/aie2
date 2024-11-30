@@ -56,7 +56,7 @@ if __name__ == '__main__':
     time.sleep(2)
 
     
-    spin_right(12, ser)   
+    drive_reverse(20, ser)   
     time.sleep(3)
            # num_read = ser.read()
            # print(int.from_bytes(num_read, byteorder = 'big'))
