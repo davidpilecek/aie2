@@ -34,7 +34,9 @@ void loop() {
   if (Serial.available() >= 8) {
     
   for (int i = 0; i < 8; i++) {
-            numbers[i] = Serial.read();      
+            numbers[i] = Serial.read();
+             
+            Serial.write(numbers[i]);     
   }
   
   for (int j = 0; j < 8; j++) {

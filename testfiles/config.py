@@ -9,20 +9,19 @@ HEIGHT_OF_IMAGE = FRAME_DIMENSIONS[1]
 
 ARUCO_MARKER_SIZE = 0.0355
 
-# percentage of frame for black line to be sought
+#percentage of frame for black line to be sought
 LINE_SEEKING_PORTION = 60
 
-# margins of error for marker alignment
-MARGIN_OF_CENTER_MISALIGNMENT = 25
-MARGIN_OF_DISTANCE = 1
-MARGIN_OF_ANGLE = 2
+MARGIN_OF_CENTER = 30
 
-DISTANCE_FROM_MARKER = 15
+MARGIN_OF_DISTANCE = 15
 
-SPEED_SLIDE = 12
-SPEED_ROLL = 12
+MARGIN_OF_ANGLE = 3
+
+SPEED_SLIDE = 17
+SPEED_ROLL = 17
 SPEED_DRIVE = 10
-SPEED_SPIN = 10
+SPEED_SPIN = 12
 
 
 

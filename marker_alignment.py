@@ -81,8 +81,12 @@ ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
 ser.reset_input_buffer()
 time.sleep(2)
 
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
+
 
 while True:
+    print("\n")
     print(f"marker_lost state: {marker_lost}")
     if aligned_translation:
         color_of_center = (0,255,0)
@@ -101,8 +105,8 @@ while True:
     corners, ids, rejectedImgPoints = detector.detectMarkers(gray)
     
     #cv2.rectangle(frame, (centre_of_frame[0] - MARGIN_OF_CENTER , centre_of_frame[1] - MARGIN_OF_CENTER), (centre_of_frame[0] + MARGIN_OF_CENTER , centre_of_frame[1] + MARGIN_OF_CENTER), color_of_center, 3)
-    cv2.line(frame, (centre_of_frame[0] - MARGIN_OF_CENTER , 0), (centre_of_frame[0] - MARGIN_OF_CENTER , FRAME_DIMENSIONS[1]), color_of_center, 3)
-    cv2.line(frame, (centre_of_frame[0] + MARGIN_OF_CENTER , 0), (centre_of_frame[0] + MARGIN_OF_CENTER , FRAME_DIMENSIONS[1]), color_of_center, 3)
+    cv2.line(frame, (centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_center, 3)
+    cv2.line(frame, (centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_center, 3)
     
     corners, marker_ids, rejectedImgPoints = detector.detectMarkers(gray)
 
@@ -119,18 +123,20 @@ while True:
         aruco_marker_side_length,
         mtx,
         dst)
-        # The pose of the marker is with respect to the camera lens frame.
+        
+      # The pose of the marker is with respect to the camera lens frame.
       # Imagine you are looking through the camera viewfinder, 
       # the camera lens frame's:
       # x-axis points to the right
-      # y-axis points straight down towards your toes
+      # y-axis points straight down towards the ground
       # z-axis points straight ahead away from your eye, out of the camera
         for i, marker_id in enumerate(marker_ids):
        
         # Store the translation (i.e. position) information
             transform_translation_x = tvecs[i][0][0] 
             transform_translation_y = tvecs[i][0][1]
-            transform_translation_z = tvecs[i][0][2] * 100
+        #multiply by 100 to convert to cm
+            transform_translation_z = tvecs[i][0][2] * 100 
      
             # Store the rotation information
             rotation_matrix = np.eye(4)
@@ -153,12 +159,11 @@ while True:
             roll_x_deg = round(math.degrees(roll_x), 3)
             pitch_y = math.degrees(pitch_y)
             yaw_z = math.degrees(yaw_z)
-            print("transform_translation_x: {}".format(transform_translation_x))
+            # ~ print("transform_translation_x: {}".format(transform_translation_x))
             print("transform_translation_z: {}".format(transform_translation_z))
-            print(f"roll_x in deg: {roll_x_deg}")
+            # ~ print(f"roll_x in deg: {roll_x_deg}")
             #print("pitch_y: {}".format(pitch_y))
             #print("yaw_z: {}".format(yaw_z))
-            print()
              
             # Draw the axes on the marker
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
@@ -166,38 +171,52 @@ while True:
             centre_x, centre_y = get_marker_centre(0)
             cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-            if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER:
+            if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_translation = False
                 last_marker_position = -1
-                
                 dfu.slide_left(SPEED_SLIDE, ser)
-                aligned_translation = False
-            elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER:
-                last_marker_position = 1
+                cv2.putText(frame, f"slide_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
-                dfu.slide_right(SPEED_SLIDE, ser)
+            elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT:
                 aligned_translation = False
+                last_marker_position = 1
+                dfu.slide_right(SPEED_SLIDE, ser)
+                cv2.putText(frame, f"slide_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                
             else:
                 last_marker_position = 0
                 aligned_translation = True
-
-            if 90 < roll_x_deg < 180 - MARGIN_OF_ANGLE:
-                dfu.roll_left(SPEED_ROLL, ser)
-                aligned_rotation = False
-            elif -180 + MARGIN_OF_ANGLE < roll_x_deg < -90:
-                dfu.roll_right(SPEED_ROLL, ser)
-                aligned_rotation = False
-            else:
-                aligned_rotation = True
+                print("translation aligned")
                 
+                if 90 < roll_x_deg < 180 - MARGIN_OF_ANGLE:
+                    aligned_rotation = False
+                    dfu.roll_left(SPEED_ROLL, ser)
+                    cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+                elif -180 + MARGIN_OF_ANGLE < roll_x_deg < -90:
+                    aligned_rotation = False
+                    dfu.roll_right(SPEED_ROLL, ser)
+                    cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+                else:
+                    aligned_rotation = True
+                    print("rotation aligned")
+
             if aligned_translation and aligned_rotation:
 
-                if transform_translation_z > MARGIN_OF_DISTANCE:
-                    dfu.drive_straight(SPEED_DRIVE, ser)
+                if transform_translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
                     aligned_distance = False
+                    dfu.drive_forward(SPEED_DRIVE, ser)
+                    cv2.putText(frame, f"drive_F", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                     
+                elif transform_translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
+                    aligned_distance = False
+                    dfu.drive_reverse(SPEED_DRIVE, ser)
+                    cv2.putText(frame, f"drive_R", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 else:
                     aligned_distance = True
                     dfu.stop_all(ser)
+                    print("all aligned")
     
         except Exception as e:
             print(e)
@@ -214,9 +233,10 @@ while True:
             dfu.slide_left(SPEED_SLIDE, ser)
             print("going left")
         elif last_marker_position == 0:
-            dfu.spin_right(SPEED_SPIN, ser)
+            dfu.spin_left(SPEED_SPIN, ser)
     # Display the resulting frame
     cv2.imshow('frame', frame)
+    out.write(frame)
     if cv2.waitKey(1) == ord('q'):
         break
 
