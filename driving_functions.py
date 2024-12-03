@@ -51,8 +51,8 @@ def spin_right(speed_spin, serial_port):
 def stop_all(serial_port):
     serial_port.write(bytes(zeros_array))
 
-speed_all = 15
-delay = 2
+speed_all = 16
+delay = 1
 
 
 
@@ -72,20 +72,22 @@ if __name__ == '__main__':
     # ~ slide_left(speed_all, ser)
     # ~ time.sleep(delay)
    
-    # ~ roll_left(speed_all, ser)   
-    # ~ time.sleep(delay)
-    # ~ roll_right(speed_all, ser)   
-    # ~ time.sleep(delay)
-    
-    # ~ slide_left(speed_all, ser)
-    # ~ time.sleep(delay)
-    
-    slide_right(speed_all, ser)
+    roll_left(speed_all, ser)   
     time.sleep(delay)
-    
-    
-    
-    
+    roll_right(speed_all, ser)   
+    time.sleep(delay)
+    # ~ while True:
+        # ~ slide_left(speed_all, ser)
+        # ~ time.sleep(delay)
+        # ~ stop_all(ser)
+        # ~ time.sleep(delay)
+        # ~ slide_right(speed_all, ser)
+        # ~ time.sleep(delay)
+        # ~ stop_all(ser)
+        # ~ time.sleep(delay)
+    stop_all(ser)
+    # ~ spin_left(speed_all, ser)
+    # ~ time.sleep(delay)
     
     
     
