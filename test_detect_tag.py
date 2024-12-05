@@ -10,6 +10,29 @@ from libcamera import controls
 import cv2
 import numpy as np
 
+
+def euler_from_quaternion(x, y, z, w):
+  """
+  Convert a quaternion into euler angles (roll, pitch, yaw)
+  roll is rotation around x in radians (counterclockwise)
+  pitch is rotation around y in radians (counterclockwise)
+  yaw is rotation around z in radians (counterclockwise)
+  """
+  t0 = +2.0 * (w * x + y * z)
+  t1 = +1.0 - 2.0 * (x * x + y * y)
+  roll_x = math.atan2(t0, t1)
+      
+  t2 = +2.0 * (w * y - z * x)
+  t2 = +1.0 if t2 > +1.0 else t2
+  t2 = -1.0 if t2 < -1.0 else t2
+  pitch_y = math.asin(t2)
+      
+  t3 = +2.0 * (w * z + x * y)
+  t4 = +1.0 - 2.0 * (y * y + z * z)
+  yaw_z = math.atan2(t3, t4)
+      
+  return roll_x, pitch_y, yaw_z # in radians
+
 # Define Kalman Filter
 class PoseKalmanFilter:
     def __init__(self):
@@ -45,6 +68,8 @@ class PoseKalmanFilter:
 # Create an instance of the Kalman filter
 pose_filter = PoseKalmanFilter()
 
+
+
 # Example callback function for ArUco pose estimation
 def smooth_pose_estimation(corners, ids, rvecs, tvecs):
     smoothed_poses = []
@@ -52,13 +77,24 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
     for i in range(len(ids)):
         # Extract raw measurements (translation and rotation vectors)
         tvec = tvecs[i].flatten()
-        rvec = rvecs[i].flatten()
 
-        # Convert rotation vector to Euler angles (roll, pitch, yaw)
-        rotation_matrix, _ = cv2.Rodrigues(rvec)
-        euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
-        roll, pitch, yaw = euler_angles.flatten()
-
+        rotation_matrix = np.eye(4)
+        rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
+        r = R.from_matrix(rotation_matrix[0:3, 0:3])
+        quat = r.as_quat()   
+        
+        # Quaternion format     
+        transform_rotation_x = quat[0] 
+        transform_rotation_y = quat[1] 
+        transform_rotation_z = quat[2] 
+        transform_rotation_w = quat[3] 
+        
+        roll, pitch, yaw = euler_from_quaternion(transform_rotation_x, 
+                                                           transform_rotation_y, 
+                                                           transform_rotation_z, 
+                                                           transform_rotation_w)
+        
+        
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
         measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
 
@@ -72,35 +108,6 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         smoothed_poses.append(corrected[:6])
 
     return smoothed_poses
-
-# Example loop for pose estimation with smoothing
-cap = cv2.VideoCapture(0)
-aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_50)
-parameters = cv2.aruco.DetectorParameters_create()
-
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
-
-    # Detect ArUco markers
-    corners, ids, rejected = cv2.aruco.detectMarkers(frame, aruco_dict, parameters=parameters)
-
-    if ids is not None:
-        # Estimate poses
-        rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(corners, 0.05, cameraMatrix, distCoeffs)
-
-        # Smooth the poses
-        smoothed_poses = smooth_pose_estimation(corners, ids, rvecs, tvecs)
-
-        # Visualize the results
-        for i in range(len(ids)):
-            smoothed_pose = smoothed_poses[i]
-            tvec = smoothed_pose[:3]
-            roll, pitch, yaw = smoothed_pose[3:]
-
-
-
 
 #from functions import *
 
@@ -138,27 +145,7 @@ aruco_marker_side_length = ARUCO_MARKER_SIZE / (1280/FRAME_DIMENSIONS[0])
 # Calibration parameters yaml file
 camera_calibration_parameters_filename = 'calibration_chessboard.yaml'
 
-def euler_from_quaternion(x, y, z, w):
-  """
-  Convert a quaternion into euler angles (roll, pitch, yaw)
-  roll is rotation around x in radians (counterclockwise)
-  pitch is rotation around y in radians (counterclockwise)
-  yaw is rotation around z in radians (counterclockwise)
-  """
-  t0 = +2.0 * (w * x + y * z)
-  t1 = +1.0 - 2.0 * (x * x + y * y)
-  roll_x = math.atan2(t0, t1)
-      
-  t2 = +2.0 * (w * y - z * x)
-  t2 = +1.0 if t2 > +1.0 else t2
-  t2 = -1.0 if t2 < -1.0 else t2
-  pitch_y = math.asin(t2)
-      
-  t3 = +2.0 * (w * z + x * y)
-  t4 = +1.0 - 2.0 * (y * y + z * z)
-  yaw_z = math.atan2(t3, t4)
-      
-  return roll_x, pitch_y, yaw_z # in radians
+
  
 # Load the camera parameters from the saved file
 cv_file = cv2.FileStorage(
@@ -168,10 +155,10 @@ dst = cv_file.getNode('D').mat()
 cv_file.release()
 
 while True:
+    print("\n")
     # Capture frame
     frame = picam2.capture_array()
     # Operations on the frame
-    frame = cv2.resize(frame, FRAME_DIMENSIONS)
     frame = cv2.flip(frame, -1)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -187,60 +174,32 @@ while True:
         aruco_marker_side_length,
         mtx,
         dst)
-        # The pose of the marker is with respect to the camera lens frame.
-      # Imagine you are looking through the camera viewfinder, 
-      # the camera lens frame's:
-      # x-axis points to the right
-      # y-axis points straight down towards your toes
-      # z-axis points straight ahead away from your eye, out of the camera
 
-        smoothed_poses = smooth_pose_estimation(corners, ids, rvecs, tvecs)
+        smoothed_poses = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
 
         for i, marker_id in enumerate(marker_ids):
-       
             smoothed_pose = smoothed_poses[i]
+            
             tvec = smoothed_pose[:3]
             roll, pitch, yaw = smoothed_pose[3:]
-            cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
+       
+            #distance from tag in cm
+            transform_translation_z = tvec[2] * 100
             
-        """ 
-        # Store the translation (i.e. position) information
-            transform_translation_x = tvecs[i][0][0]
-            transform_translation_y = tvecs[i][0][1]
-            transform_translation_z = tvecs[i][0][2]
-     
-            # Store the rotation information
-            rotation_matrix = np.eye(4)
-            rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-            r = R.from_matrix(rotation_matrix[0:3, 0:3])
-            quat = r.as_quat()   
-             
-            # Quaternion format     
-            transform_rotation_x = quat[0] 
-            transform_rotation_y = quat[1] 
-            transform_rotation_z = quat[2] 
-            transform_rotation_w = quat[3] 
-             
-            # Euler angle format in radians
-            roll_x, pitch_y, yaw_z = euler_from_quaternion(transform_rotation_x, 
-                                                           transform_rotation_y, 
-                                                           transform_rotation_z, 
-                                                           transform_rotation_w)
-             
-            roll_x_deg = math.degrees(roll_x)
-            pitch_y = math.degrees(pitch_y)
-            yaw_z = math.degrees(yaw_z)
-            print("transform_translation_x: {}".format(transform_translation_x))
-            print("transform_translation_y: {}".format(transform_translation_y))
-            print("transform_translation_z: {}".format(transform_translation_z))
-            print(f"roll_x in rad: {roll_x}")
-            print(f"roll_x in deg: {roll_x_deg}")
-        """
-
-            #print("pitch_y: {}".format(pitch_y))
-            #print("yaw_z: {}".format(yaw_z)) 
-             
-            # Draw the axes on the marker
+            yaw_deg = round(math.degrees(yaw), 3)
+            pitch_deg = round(math.degrees(pitch), 3)
+            roll_deg = round(math.degrees(roll), 3)
+            
+            draw_array = np.array([roll, pitch, yaw], dtype = np.float32)
+            print(rvecs[0])
+            print(draw_array)
+            cv2.drawFrameAxes(frame, mtx, dst, draw_array, tvecs[i], 0.05)
+            
+            print(f"yaw in deg: {yaw_deg}")
+            print(f"pitch in deg: {pitch_deg}")
+            print(f"roll in deg: {roll_deg}")
+            
+            print(f"transform_translation_z: {transform_translation_z}")
             
 
         try:
