@@ -5,15 +5,14 @@ from config import *
 from scipy.spatial.transform import Rotation as R
 import math # Math library
 from libcamera import controls
+import matplotlib
 import matplotlib.pyplot as plt
-
+matplotlib.use("Agg")
 import cv2
 import numpy as np
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
-
-positions = []
 
 
 def euler_from_quaternion(x, y, z, w):
@@ -90,6 +89,7 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         # Convert from radians to degrees
         roll_deg, pitch_deg, yaw_deg = np.degrees([roll, pitch, yaw])
         
+        real_yaw = yaw
         
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
         measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
@@ -103,7 +103,7 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         # Save the corrected pose for use
         smoothed_poses.append(corrected[:6])
 
-    return smoothed_poses
+    return smoothed_poses, real_yaw
 
 picam2 = Picamera2()
 picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}))
@@ -146,6 +146,9 @@ mtx = cv_file.getNode('K').mat()
 dst = cv_file.getNode('D').mat()
 cv_file.release()
 
+yaw_corrected = []
+yaw_real = []
+
 while True:
     print("\n")
     # Capture frame
@@ -167,7 +170,7 @@ while True:
         mtx,
         dst)
 
-        smoothed_poses = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
+        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
 
         for i, marker_id in enumerate(marker_ids):
             smoothed_pose = smoothed_poses[i]
@@ -177,8 +180,8 @@ while True:
             roll_deg = round(roll_deg, 2)
             pitch_deg = round(pitch_deg, 2)
             yaw_deg = round(yaw_deg, 2)
-            positions.append(yaw_deg)
-            
+            yaw_corrected.append(yaw_deg)
+            yaw_real.append(real_yaw)
             print(f"roll deg: {roll_deg:.2f}")
             print(f"pitch deg: {pitch_deg:.2f}")
             print(f"yaw deg: {yaw_deg:.2f}")
@@ -213,14 +216,15 @@ while True:
 picam2.stop()
 cv2.destroyAllWindows()
 
+
 plt.figure(figsize=(8, 6))
-plt.plot(positions, label="YAW", marker="o")
-plt.xlabel("Frame Index")
-plt.ylabel("Position (meters)")
+plt.plot(yaw_corrected, label="corrected yaw")
+plt.plot(yaw_real, label="real yaw")
+plt.xlabel("Frame")
+plt.ylabel("Angle")
 
 plt.legend()
 plt.grid()
 
 # Save the plot
-plt.savefig("aruco_marker_position.png")
-plt.show()
+plt.savefig("aruco_yaw_kalman_graph.png")
