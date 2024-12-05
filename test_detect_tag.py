@@ -10,6 +10,9 @@ from libcamera import controls
 import cv2
 import numpy as np
 
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
+
 
 def euler_from_quaternion(x, y, z, w):
   """
@@ -48,13 +51,13 @@ class PoseKalmanFilter:
         self.kalman.measurementMatrix = np.eye(6, dtype=np.float32)
 
         # Process noise covariance
-        self.kalman.processNoiseCov = np.eye(6, dtype=np.float32) * 3e-2
+        self.kalman.processNoiseCov = np.eye(6, dtype=np.float32) * KALMAN_PROCESS_COEF
 
         # Measurement noise covariance
-        self.kalman.measurementNoiseCov = np.eye(6, dtype=np.float32) * 1e-2
+        self.kalman.measurementNoiseCov = np.eye(6, dtype=np.float32) * KALMAN_MEASUREMENT_COEF
 
         # Error covariance
-        self.kalman.errorCovPost = np.eye(6, dtype=np.float32)
+        self.kalman.errorCovPost = np.eye(6, dtype=np.float32) * KALMAN_ERROR_COEF
 
         # Initial state (e.g., zeros)
         self.kalman.statePost = np.zeros(6, dtype=np.float32)
@@ -76,17 +79,18 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         # Extract raw measurements (translation and rotation vectors)
         tvec = tvecs[i].flatten()
         rvec = rvecs[i].flatten()
-
+        
         # Convert rotation vector to Euler angles (roll, pitch, yaw)
         rotation_matrix, _ = cv2.Rodrigues(rvec)
         euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
-        roll, pitch, yaw = euler_angles.flatten()
-
+        roll, yaw, pitch = euler_angles.flatten()
+        
         # Convert from radians to degrees
         roll_deg, pitch_deg, yaw_deg = np.degrees([roll, pitch, yaw])
-
+        
+        
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([tvec[0], tvec[1], tvec[2], roll_deg, pitch_deg, yaw_deg], dtype=np.float32)
+        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
 
         # Predict the next state
         predicted = pose_filter.predict()
@@ -169,16 +173,27 @@ while True:
             smoothed_pose = smoothed_poses[i]
             tvec = smoothed_pose[:3]
             roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
-       
+            
+            roll_deg = round(roll_deg, 2)
+            pitch_deg = round(pitch_deg, 2)
+            yaw_deg = round(yaw_deg, 2)
+            
+            print(f"roll deg: {roll_deg:.2f}")
+            print(f"pitch deg: {pitch_deg:.2f}")
+            print(f"yaw deg: {yaw_deg:.2f}")
+            
+            cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #distance from tag in cm
             transform_translation_z = tvec[2] * 100
             
-            draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
-            print(rvecs[0])
-            print(draw_array)
-            cv2.drawFrameAxes(frame, mtx, dst, draw_array, tvecs[i], 0.05)
+            #draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
+            print(rvecs)
+            #print(draw_array)
+            cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
             
-            print(f"ID: {marker_ids[i][0]} | Position: {tvec} | Orientation (deg): Roll={roll_deg:.2f}, Pitch={pitch_deg:.2f}, Yaw={yaw_deg:.2f}")
+            #print(f"Position: {transform_translation_z} | Orientation (deg): Roll={roll_deg}, Pitch={pitch_deg}, Yaw={yaw_deg}")
     
 
         try:
@@ -191,6 +206,7 @@ while True:
 
     # Display the resulting frame
     cv2.imshow('frame', frame)
+    out.write(frame)
     if cv2.waitKey(1) == ord('q'):
         break
 
