@@ -69,34 +69,24 @@ class PoseKalmanFilter:
 pose_filter = PoseKalmanFilter()
 
 
-
-# Example callback function for ArUco pose estimation
 def smooth_pose_estimation(corners, ids, rvecs, tvecs):
     smoothed_poses = []
 
     for i in range(len(ids)):
         # Extract raw measurements (translation and rotation vectors)
         tvec = tvecs[i].flatten()
+        rvec = rvecs[i].flatten()
 
-        rotation_matrix = np.eye(4)
-        rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-        r = R.from_matrix(rotation_matrix[0:3, 0:3])
-        quat = r.as_quat()   
-        
-        # Quaternion format     
-        transform_rotation_x = quat[0] 
-        transform_rotation_y = quat[1] 
-        transform_rotation_z = quat[2] 
-        transform_rotation_w = quat[3] 
-        
-        roll, pitch, yaw = euler_from_quaternion(transform_rotation_x, 
-                                                           transform_rotation_y, 
-                                                           transform_rotation_z, 
-                                                           transform_rotation_w)
-        
-        
+        # Convert rotation vector to Euler angles (roll, pitch, yaw)
+        rotation_matrix, _ = cv2.Rodrigues(rvec)
+        euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
+        roll, pitch, yaw = euler_angles.flatten()
+
+        # Convert from radians to degrees
+        roll_deg, pitch_deg, yaw_deg = np.degrees([roll, pitch, yaw])
+
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
+        measurement = np.array([tvec[0], tvec[1], tvec[2], roll_deg, pitch_deg, yaw_deg], dtype=np.float32)
 
         # Predict the next state
         predicted = pose_filter.predict()
@@ -108,8 +98,6 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         smoothed_poses.append(corrected[:6])
 
     return smoothed_poses
-
-#from functions import *
 
 picam2 = Picamera2()
 picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}))
@@ -179,28 +167,19 @@ while True:
 
         for i, marker_id in enumerate(marker_ids):
             smoothed_pose = smoothed_poses[i]
-            
             tvec = smoothed_pose[:3]
-            roll, pitch, yaw = smoothed_pose[3:]
+            roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
        
             #distance from tag in cm
             transform_translation_z = tvec[2] * 100
             
-            yaw_deg = round(math.degrees(yaw), 3)
-            pitch_deg = round(math.degrees(pitch), 3)
-            roll_deg = round(math.degrees(roll), 3)
-            
-            draw_array = np.array([roll, pitch, yaw], dtype = np.float32)
+            draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
             print(rvecs[0])
             print(draw_array)
             cv2.drawFrameAxes(frame, mtx, dst, draw_array, tvecs[i], 0.05)
             
-            print(f"yaw in deg: {yaw_deg}")
-            print(f"pitch in deg: {pitch_deg}")
-            print(f"roll in deg: {roll_deg}")
-            
-            print(f"transform_translation_z: {transform_translation_z}")
-            
+            print(f"ID: {marker_ids[i][0]} | Position: {tvec} | Orientation (deg): Roll={roll_deg:.2f}, Pitch={pitch_deg:.2f}, Yaw={yaw_deg:.2f}")
+    
 
         try:
             centre = get_marker_centre(0)
