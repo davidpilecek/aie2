@@ -13,8 +13,6 @@ import numpy as np
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
-positions = []
-
 
 def euler_from_quaternion(x, y, z, w):
   """
@@ -77,31 +75,36 @@ pose_filter = PoseKalmanFilter()
 def smooth_pose_estimation(corners, ids, rvecs, tvecs):
     smoothed_poses = []
 
-    for i in range(len(ids)):
-        # Extract raw measurements (translation and rotation vectors)
-        tvec = tvecs[i].flatten()
-        rvec = rvecs[i].flatten()
+    rotation_matrix = np.eye(4)
+    rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[0][0]))[0]
+    r = R.from_matrix(rotation_matrix[0:3, 0:3])
+    quat = r.as_quat()   
         
-        # Convert rotation vector to Euler angles (roll, pitch, yaw)
-        rotation_matrix, _ = cv2.Rodrigues(rvec)
-        euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
-        roll, yaw, pitch = euler_angles.flatten()
+    # Quaternion format     
+    transform_rotation_x = quat[0] 
+    transform_rotation_y = quat[1] 
+    transform_rotation_z = quat[2] 
+    transform_rotation_w = quat[3] 
         
-        # Convert from radians to degrees
-        roll_deg, pitch_deg, yaw_deg = np.degrees([roll, pitch, yaw])
-        
-        
-        # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
+    # Euler angle format in radians
+    roll, pitch, yaw = euler_from_quaternion(transform_rotation_x, 
+                                                    transform_rotation_y, 
+                                                    transform_rotation_z, 
+                                                    transform_rotation_w)
+    
 
-        # Predict the next state
-        predicted = pose_filter.predict()
+    
+    # Construct measurement vector: [x, y, z, roll, pitch, yaw]
+    measurement = np.array([tvecs[0][0], tvecs[0][1], tvecs[0][2], roll, pitch, yaw], dtype=np.float32)
 
-        # Update the Kalman filter with the current measurement
-        corrected = pose_filter.correct(measurement)
+    # Predict the next state
+    pose_filter.predict()
 
-        # Save the corrected pose for use
-        smoothed_poses.append(corrected[:6])
+    # Update the Kalman filter with the current measurement
+    corrected = pose_filter.correct(measurement)
+
+    # Save the corrected pose for use
+    smoothed_poses.append(corrected[:6])
 
     return smoothed_poses
 
@@ -177,7 +180,6 @@ while True:
             roll_deg = round(roll_deg, 2)
             pitch_deg = round(pitch_deg, 2)
             yaw_deg = round(yaw_deg, 2)
-            positions.append(yaw_deg)
             
             print(f"roll deg: {roll_deg:.2f}")
             print(f"pitch deg: {pitch_deg:.2f}")
@@ -212,15 +214,3 @@ while True:
 # When everything done, release the capture
 picam2.stop()
 cv2.destroyAllWindows()
-
-plt.figure(figsize=(8, 6))
-plt.plot(positions, label="YAW", marker="o")
-plt.xlabel("Frame Index")
-plt.ylabel("Position (meters)")
-
-plt.legend()
-plt.grid()
-
-# Save the plot
-plt.savefig("aruco_marker_position.png")
-plt.show()
