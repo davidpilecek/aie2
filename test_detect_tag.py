@@ -4,14 +4,16 @@ from picamera2 import Picamera2
 from config import *
 from scipy.spatial.transform import Rotation as R
 import math # Math library
+from libcamera import controls
 
 #from functions import *
 
 picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration())
+picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}))
 
 # Start the camera
 picam2.start()
+picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
 
 #ARUCO
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)

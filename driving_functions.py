@@ -24,12 +24,12 @@ def turn_right(speed_turn, serial_port):
     data_array = [0, speed_turn, 0, speed_turn, 0, 0, 0, 0]
     serial_port.write(bytes(data_array))
     print("turning right")
-def slide_right(speed_slide, serial_port):
-    data_array = [0, speed_slide, speed_slide, 0, speed_slide, 0, 0, speed_slide]
+def strafe_right(speed_strafe, serial_port):
+    data_array = [0, speed_strafe, speed_strafe, 0, speed_strafe, 0, 0, speed_strafe]
     serial_port.write(bytes(data_array))
     print("sliding R")
-def slide_left(speed_slide, serial_port):
-    data_array = [speed_slide, 0, 0, speed_slide, 0, speed_slide, speed_slide, 0]
+def strafe_left(speed_strafe, serial_port):
+    data_array = [speed_strafe, 0, 0, speed_strafe, 0, speed_strafe, speed_strafe, 0]
     serial_port.write(bytes(data_array))
     print("slid l")
 def roll_left(speed_roll, serial_port):
@@ -61,40 +61,6 @@ if __name__ == '__main__':
     ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     ser.reset_input_buffer()
     time.sleep(2)
-
-    
-    
-    # ~ turn_left(speed_all, ser)   
-    # ~ time.sleep(delay)
-    
-    # ~ turn_right(speed_all, ser)   
-    # ~ time.sleep(delay)
-    # ~ slide_left(speed_all, ser)
-    # ~ time.sleep(delay)
-   
-    roll_left(speed_all, ser)   
-    time.sleep(delay)
-    roll_right(speed_all, ser)   
-    time.sleep(delay)
-    # ~ while True:
-        # ~ slide_left(speed_all, ser)
-        # ~ time.sleep(delay)
-        # ~ stop_all(ser)
-        # ~ time.sleep(delay)
-        # ~ slide_right(speed_all, ser)
-        # ~ time.sleep(delay)
-        # ~ stop_all(ser)
-        # ~ time.sleep(delay)
-    stop_all(ser)
-    # ~ spin_left(speed_all, ser)
-    # ~ time.sleep(delay)
-    
-    
-    
-    
-    
-           # num_read = ser.read()
-           # print(int.from_bytes(num_read, byteorder = 'big'))
 
     stop_all(ser)
     quit()    

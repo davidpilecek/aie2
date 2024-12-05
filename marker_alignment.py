@@ -15,7 +15,7 @@ pid_centre = PID(0.1, 0.02, 0, setpoint = centre_of_frame[0])
 pid_centre.sample_time = 0.01
 pid_centre.output_limits = (-3, 0)
 
-pid_angle = PID(0.3, 0.02, 0, setpoint = 180)
+pid_angle = PID(0.1,0, 0, setpoint = 180)
 pid_angle.sample_time = 0.01
 pid_angle.output_limits = (-2, 2)
 
@@ -82,7 +82,7 @@ aruco_marker_side_length = ARUCO_MARKER_SIZE / (1280/FRAME_DIMENSIONS[0])
 
 # Calibration parameters yaml file
 camera_calibration_parameters_filename = 'calibration_chessboard.yaml'
-    
+
 # Load the camera parameters from the saved file
 cv_file = cv2.FileStorage(
     camera_calibration_parameters_filename, cv2.FILE_STORAGE_READ) 
@@ -185,21 +185,21 @@ while True:
         try:            
             centre_x, centre_y = get_marker_centre(0)
             cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-            SPEED_SLIDE_PID = int(SPEED_SLIDE + pid_centre(centre_x))
+            SPEED_STRAFE_PID = int(SPEED_STRAFE + pid_centre(centre_x))
             SPEED_ROLL_PID = int(SPEED_ROLL + pid_angle(roll_x_deg))
-            print(SPEED_SLIDE_PID)
+            print(SPEED_STRAFE_PID)
             
             # ~ if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
                 # ~ aligned_translation = False
                 # ~ last_marker_position = -1
-                # ~ dfu.slide_left(SPEED_SLIDE_PID, ser)
-                # ~ cv2.putText(frame, f"slide_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                # ~ dfu.strafe_left(SPEED_STRAFE_PID, ser)
+                # ~ cv2.putText(frame, f"strafe_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
             # ~ elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT:
                 # ~ aligned_translation = False
                 # ~ last_marker_position = 1
-                # ~ dfu.slide_right(SPEED_SLIDE_PID, ser)
-                # ~ cv2.putText(frame, f"slide_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                # ~ dfu.strafe_right(SPEED_STRAFE_PID, ser)
+                # ~ cv2.putText(frame, f"strafe_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
             # ~ else:
                 # ~ last_marker_position = 0
@@ -247,10 +247,10 @@ while True:
         
     if marker_lost:
         if last_marker_position == 1:
-            dfu.slide_right(SPEED_SLIDE, ser)
+            dfu.strafe_right(SPEED_STRAFE, ser)
             print("going right")
         elif last_marker_position == -1:
-            dfu.slide_left(SPEED_SLIDE, ser)
+            dfu.strafe_left(SPEED_STRAFE, ser)
             print("going left")
         elif last_marker_position == 0:
             dfu.spin_left(SPEED_SPIN, ser)
