@@ -6,11 +6,85 @@ import serial
 import time
 import driving_functions as dfu
 from scipy.spatial.transform import Rotation as R
+
 import math
+import matplotlib
+import matplotlib.pyplot as plt
+
+from libcamera import controls
 from simple_pid import PID
 
-#from functions import *
+matplotlib.use("Agg")
 
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
+
+# Define Kalman Filter
+class PoseKalmanFilter:
+    def __init__(self):
+        self.kalman = cv2.KalmanFilter(6, 6)  # 6 state vars, 6 measurement vars
+
+        # State: [x, y, z, roll, pitch, yaw]
+        # Measurement: [x, y, z, roll, pitch, yaw]
+
+        # Transition matrix (assuming constant velocity model)
+        self.kalman.transitionMatrix = np.eye(6, dtype=np.float32)
+
+        # Measurement matrix
+        self.kalman.measurementMatrix = np.eye(6, dtype=np.float32)
+
+        # Process noise covariance
+        self.kalman.processNoiseCov = np.eye(6, dtype=np.float32) * KALMAN_PROCESS_COEF
+
+        # Measurement noise covariance
+        self.kalman.measurementNoiseCov = np.eye(6, dtype=np.float32) * KALMAN_MEASUREMENT_COEF
+
+        # Error covariance
+        self.kalman.errorCovPost = np.eye(6, dtype=np.float32) * KALMAN_ERROR_COEF
+
+        # Initial state (e.g., zeros)
+        self.kalman.statePost = np.zeros(6, dtype=np.float32)
+
+    def predict(self):
+        return self.kalman.predict()
+
+    def correct(self, measurement):
+        return self.kalman.correct(measurement)
+
+# Create an instance of the Kalman filter
+pose_filter = PoseKalmanFilter()
+
+def smooth_pose_estimation(corners, ids, rvecs, tvecs):
+    smoothed_poses = []
+
+    for i in range(len(ids)):
+        # Extract raw measurements (translation and rotation vectors)
+        tvec = tvecs[i].flatten()
+        rvec = rvecs[i].flatten()
+        
+        # Convert rotation vector to Euler angles (roll, pitch, yaw)
+        rotation_matrix, _ = cv2.Rodrigues(rvec)
+        euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
+        roll, yaw, pitch = euler_angles.flatten()
+        
+        real_yaw = yaw
+        
+        # Construct measurement vector: [x, y, z, roll, pitch, yaw]
+        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
+
+        # Predict the next state
+        predicted = pose_filter.predict()
+
+        # Update the Kalman filter with the current measurement
+        corrected = pose_filter.correct(measurement)
+
+        # Save the corrected pose for use
+        smoothed_poses.append(corrected[:6])
+
+    return smoothed_poses, real_yaw
+
+
+#PID settings for each parameter of marker alignment
 pid_centre = PID(0.1, 0.02, 0, setpoint = centre_of_frame[0])
 pid_centre.sample_time = 0.01
 pid_centre.output_limits = (-3, 0)
@@ -25,8 +99,9 @@ pid_distance.output_limits = (-3, 0)
 
 #camera config
 picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration())
+picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}))
 picam2.start()
+picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
 
 aligned_translation = False
 aligned_rotation = False

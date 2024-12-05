@@ -8,34 +8,10 @@ from libcamera import controls
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use("Agg")
-import cv2
-import numpy as np
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
-
-def euler_from_quaternion(x, y, z, w):
-  """
-  Convert a quaternion into euler angles (roll, pitch, yaw)
-  roll is rotation around x in radians (counterclockwise)
-  pitch is rotation around y in radians (counterclockwise)
-  yaw is rotation around z in radians (counterclockwise)
-  """
-  t0 = +2.0 * (w * x + y * z)
-  t1 = +1.0 - 2.0 * (x * x + y * y)
-  roll_x = math.atan2(t0, t1)
-      
-  t2 = +2.0 * (w * y - z * x)
-  t2 = +1.0 if t2 > +1.0 else t2
-  t2 = -1.0 if t2 < -1.0 else t2
-  pitch_y = math.asin(t2)
-      
-  t3 = +2.0 * (w * z + x * y)
-  t4 = +1.0 - 2.0 * (y * y + z * z)
-  yaw_z = math.atan2(t3, t4)
-      
-  return roll_x, pitch_y, yaw_z # in radians
 
 # Define Kalman Filter
 class PoseKalmanFilter:
@@ -85,9 +61,6 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         rotation_matrix, _ = cv2.Rodrigues(rvec)
         euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
         roll, yaw, pitch = euler_angles.flatten()
-        
-        # Convert from radians to degrees
-        roll_deg, pitch_deg, yaw_deg = np.degrees([roll, pitch, yaw])
         
         real_yaw = yaw
         
