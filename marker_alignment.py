@@ -83,13 +83,23 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
 
     return smoothed_poses, real_yaw
 
+def get_marker_centre(marker_id):
+    centre_x1 = (int(corners[marker_id][0][0][0])+int(corners[marker_id][0][1][0]))/2
+    centre_x2 = (int(corners[marker_id][0][2][0])+int(corners[marker_id][0][3][0]))/2
+    centre_x = int((centre_x1+centre_x2)/2)
+
+    centre_y1 = (int(corners[marker_id][0][0][1])+int(corners[marker_id][0][1][1]))/2
+    centre_y2 = (int(corners[marker_id][0][2][1])+int(corners[marker_id][0][3][1]))/2
+    centre_y = int((centre_y1+centre_y2)/2) 
+    
+    return centre_x, centre_y
 
 #PID settings for each parameter of marker alignment
 pid_centre = PID(0.1, 0.02, 0, setpoint = centre_of_frame[0])
 pid_centre.sample_time = 0.01
 pid_centre.output_limits = (-3, 0)
 
-pid_angle = PID(0.1,0, 0, setpoint = 180)
+pid_angle = PID(0.1, 0, 0, setpoint = 0)
 pid_angle.sample_time = 0.01
 pid_angle.output_limits = (-2, 2)
 
@@ -112,42 +122,6 @@ seeing_marker = False
 marker_lost = True
 
 last_marker_position = 0             # -1 = left, 1 = right 
-
-
-
-def euler_from_quaternion(x, y, z, w):
-  """
-  Convert a quaternion into euler angles (roll, pitch, yaw)
-  roll is rotation around x in radians (counterclockwise)
-  pitch is rotation around y in radians (counterclockwise)
-  yaw is rotation around z in radians (counterclockwise)
-  """
-  t0 = +2.0 * (w * x + y * z)
-  t1 = +1.0 - 2.0 * (x * x + y * y)
-  roll_x = math.atan2(t0, t1)
-      
-  t2 = +2.0 * (w * y - z * x)
-  t2 = +1.0 if t2 > +1.0 else t2
-  t2 = -1.0 if t2 < -1.0 else t2
-  pitch_y = math.asin(t2)
-      
-  t3 = +2.0 * (w * z + x * y)
-  t4 = +1.0 - 2.0 * (y * y + z * z)
-  yaw_z = math.atan2(t3, t4)
-      
-  return roll_x, pitch_y, yaw_z # in radians
- 
-def get_marker_centre(marker_id):
-    centre_x1 = (int(corners[marker_id][0][0][0])+int(corners[marker_id][0][1][0]))/2
-    centre_x2 = (int(corners[marker_id][0][2][0])+int(corners[marker_id][0][3][0]))/2
-    centre_x = int((centre_x1+centre_x2)/2)
-
-    centre_y1 = (int(corners[marker_id][0][0][1])+int(corners[marker_id][0][1][1]))/2
-    centre_y2 = (int(corners[marker_id][0][2][1])+int(corners[marker_id][0][3][1]))/2
-    centre_y = int((centre_y1+centre_y2)/2) 
-    
-    return centre_x, centre_y
-    
     
 #ARUCO
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -172,6 +146,8 @@ time.sleep(2)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
+yaw_corrected = []
+yaw_real = []
 
 while True:
     
@@ -186,7 +162,6 @@ while True:
     # Capture frame
     frame = picam2.capture_array()
     # Operations on the frame
-    frame = cv2.resize(frame, FRAME_DIMENSIONS)
     frame = cv2.flip(frame, -1)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -213,47 +188,33 @@ while True:
         mtx,
         dst)
         
-      # The pose of the marker is with respect to the camera lens frame.
-      # Imagine you are looking through the camera viewfinder, 
-      # the camera lens frame's:
-      # x-axis points to the right
-      # y-axis points straight down towards the ground
-      # z-axis points straight ahead away from your eye, out of the camera
+        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
+
         for i, marker_id in enumerate(marker_ids):
-       
-        # Store the translation (i.e. position) information
-            transform_translation_x = tvecs[i][0][0] 
-            transform_translation_y = tvecs[i][0][1]
-        #multiply by 100 to convert to cm
-            transform_translation_z = tvecs[i][0][2] * 100 
-     
-            # Store the rotation information
-            rotation_matrix = np.eye(4)
-            rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-            r = R.from_matrix(rotation_matrix[0:3, 0:3])
-            quat = r.as_quat()   
-             
-            # Quaternion format     
-            transform_rotation_x = quat[0] 
-            transform_rotation_y = quat[1] 
-            transform_rotation_z = quat[2] 
-            transform_rotation_w = quat[3] 
-             
-            # Euler angle format in radians
-            roll_x, pitch_y, yaw_z = euler_from_quaternion(transform_rotation_x, 
-                                                           transform_rotation_y, 
-                                                           transform_rotation_z, 
-                                                           transform_rotation_w)
-             
-            roll_x_deg = round(math.degrees(roll_x), 3)
-            print(roll_x_deg)
-            pitch_y = math.degrees(pitch_y)
-            yaw_z = math.degrees(yaw_z)
-            # ~ print("transform_translation_x: {}".format(transform_translation_x))
-            print("transform_translation_z: {}".format(transform_translation_z))
-            # ~ print(f"roll_x in deg: {roll_x_deg}")
-            #print("pitch_y: {}".format(pitch_y))
-            #print("yaw_z: {}".format(yaw_z))
+            smoothed_pose = smoothed_poses[i]
+            tvec = smoothed_pose[:3]
+            roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]      
+
+            roll_deg = round(roll_deg, 2)
+            pitch_deg = round(pitch_deg, 2)
+            yaw_deg = round(yaw_deg, 2)
+
+            yaw_corrected.append(yaw_deg)
+            yaw_real.append(real_yaw)
+            print(f"roll deg: {roll_deg:.2f}")
+            print(f"pitch deg: {pitch_deg:.2f}")
+            print(f"yaw deg: {yaw_deg:.2f}")
+            
+            cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            #distance from tag in cm
+            transform_translation_y = tvec[1] * 100
+            transform_translation_z = tvec[2] * 100
+            cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            #draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
+            print(rvecs)
              
             # Draw the axes on the marker
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
@@ -261,7 +222,7 @@ while True:
             centre_x, centre_y = get_marker_centre(0)
             cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             SPEED_STRAFE_PID = int(SPEED_STRAFE + pid_centre(centre_x))
-            SPEED_ROLL_PID = int(SPEED_ROLL + pid_angle(roll_x_deg))
+            SPEED_ROLL_PID = int(SPEED_ROLL + pid_angle(yaw_deg))
             print(SPEED_STRAFE_PID)
             
             # ~ if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
@@ -282,15 +243,16 @@ while True:
                 # ~ print("translation aligned")
                 # ~ dfu.stop_all(ser)
                 
-            if 90 < roll_x_deg < 180 - MARGIN_OF_ANGLE:
+            
+            if MARGIN_OF_ANGLE < yaw_deg < 90:
                     aligned_rotation = False
                     dfu.roll_left(SPEED_ROLL_PID, ser)
                     cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                     
-            elif -180 + MARGIN_OF_ANGLE < roll_x_deg < -90:
+            elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
                     aligned_rotation = False
                     dfu.roll_right(SPEED_ROLL_PID, ser)
-                    cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    cv2.putText(frame, f"roll_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                     
             else:
                     aligned_rotation = True
@@ -339,3 +301,15 @@ while True:
 dfu.stop_all(ser)
 picam2.stop()
 cv2.destroyAllWindows()
+
+plt.figure(figsize=(8, 6))
+plt.plot(yaw_corrected, label="corrected yaw")
+plt.plot(yaw_real, label="real yaw")
+plt.xlabel("Frame")
+plt.ylabel("Angle")
+
+plt.legend()
+plt.grid()
+
+# Save the plot
+plt.savefig("aruco_yaw_kalman_graph.png")

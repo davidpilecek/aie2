@@ -146,6 +146,7 @@ while True:
         smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
 
         for i, marker_id in enumerate(marker_ids):
+
             smoothed_pose = smoothed_poses[i]
             tvec = smoothed_pose[:3]
             roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
@@ -153,6 +154,7 @@ while True:
             roll_deg = round(roll_deg, 2)
             pitch_deg = round(pitch_deg, 2)
             yaw_deg = round(yaw_deg, 2)
+
             yaw_corrected.append(yaw_deg)
             yaw_real.append(real_yaw)
             print(f"roll deg: {roll_deg:.2f}")
@@ -163,8 +165,10 @@ while True:
             cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #distance from tag in cm
+            transform_translation_y = tvec[1] * 100
             transform_translation_z = tvec[2] * 100
-            
+            cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
             print(rvecs)
             #print(draw_array)
