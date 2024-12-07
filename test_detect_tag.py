@@ -49,7 +49,7 @@ class PoseKalmanFilter:
 pose_filter = PoseKalmanFilter()
 
 
-def smooth_pose_estimation(corners, ids, rvecs, tvecs):
+def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
     smoothed_poses = []
 
     for i in range(len(ids)):
@@ -65,7 +65,7 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         real_yaw = yaw
         
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
+        measurement = np.array([centre[0], tvec[0], tvec[2], roll, pitch, yaw], dtype=np.float32)
 
         # Predict the next state
         predicted = pose_filter.predict()
@@ -122,6 +122,9 @@ cv_file.release()
 yaw_corrected = []
 yaw_real = []
 
+trans_corrected = []
+trans_real = []
+
 while True:
     print("\n")
     # Capture frame
@@ -142,13 +145,15 @@ while True:
         aruco_marker_side_length,
         mtx,
         dst)
-
-        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
+        centre = get_marker_centre(0)
+        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs, centre)
+        
 
         for i, marker_id in enumerate(marker_ids):
 
             smoothed_pose = smoothed_poses[i]
-            tvec = smoothed_pose[:3]
+            tvec = smoothed_pose[1:3]
+            centre_corrected = smoothed_pose[0]
             roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
             
             roll_deg = round(roll_deg, 2)
@@ -157,6 +162,10 @@ while True:
 
             yaw_corrected.append(yaw_deg)
             yaw_real.append(real_yaw)
+            
+            trans_corrected.append(centre_corrected)
+            trans_real.append(centre[0])
+            
             print(f"roll deg: {roll_deg:.2f}")
             print(f"pitch deg: {pitch_deg:.2f}")
             print(f"yaw deg: {yaw_deg:.2f}")
@@ -165,10 +174,13 @@ while True:
             cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #distance from tag in cm
-            transform_translation_y = tvec[1] * 100
+            transform_translation_x = tvec[0] * 100
             transform_translation_z = tvec[2] * 100
+            transform_translation_y = tvec[1] * 100
             cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"translation x: {transform_translation_x:.2f}", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            
             #draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
             print(rvecs)
             #print(draw_array)
@@ -176,12 +188,11 @@ while True:
             
             #print(f"Position: {transform_translation_z} | Orientation (deg): Roll={roll_deg}, Pitch={pitch_deg}, Yaw={yaw_deg}")
     
-        try:
-            centre = get_marker_centre(0)
-            cv2.putText(frame, ".", centre, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-        except Exception as e:
-            print(e)
-            pass
+        # ~ try:
+
+        # ~ except Exception as e:
+            # ~ print(e)
+            # ~ pass
         
     # Display the resulting frame
     cv2.imshow('frame', frame)
@@ -193,15 +204,18 @@ while True:
 picam2.stop()
 cv2.destroyAllWindows()
 
-
 plt.figure(figsize=(8, 6))
-plt.plot(yaw_corrected, label="corrected yaw")
-plt.plot(yaw_real, label="real yaw")
+# ~ plt.plot(high_boundary)
+# ~ plt.plot(low_boundary)
+# ~ plt.plot(yaw_corrected, label="corrected yaw")
+# ~ plt.plot(yaw_real, label="real yaw")
+
+plt.plot(trans_corrected, label="corrected translation")
+plt.plot(trans_real, label="real translation")
+
 plt.xlabel("Frame")
 plt.ylabel("Angle")
-
 plt.legend()
 plt.grid()
-
-# Save the plot
-plt.savefig("aruco_yaw_kalman_graph.png")
+plt.savefig("trans_kalman_graph.png")
+# ~ plt.savefig("aruco__kalman_graph.png")

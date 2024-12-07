@@ -54,7 +54,7 @@ class PoseKalmanFilter:
 # Create an instance of the Kalman filter
 pose_filter = PoseKalmanFilter()
 
-def smooth_pose_estimation(corners, ids, rvecs, tvecs):
+def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
     smoothed_poses = []
 
     for i in range(len(ids)):
@@ -70,7 +70,7 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs):
         real_yaw = yaw
         
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
+        measurement = np.array([centre[0], tvec[0], tvec[2], roll, pitch, yaw], dtype=np.float32)
 
         # Predict the next state
         predicted = pose_filter.predict()
@@ -99,7 +99,7 @@ pid_centre = PID(0.1, 0.02, 0, setpoint = centre_of_frame[0])
 pid_centre.sample_time = 0.01
 pid_centre.output_limits = (-3, 0)
 
-pid_angle = PID(0.1, 0, 0, setpoint = 0)
+pid_angle = PID(0.1, 0.02, 0.001, setpoint = 0)
 pid_angle.sample_time = 0.01
 pid_angle.output_limits = (-2, 2)
 
@@ -149,8 +149,15 @@ out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 yaw_corrected = []
 yaw_real = []
 
+trans_corrected = []
+trans_real = []
+
+high_boundary = []
+low_boundary = []
+
 while True:
-    
+    high_boundary.append(MARGIN_OF_ANGLE)
+    low_boundary.append(-MARGIN_OF_ANGLE)
     print("\n")
     print(f"marker_lost state: {marker_lost}")
     if aligned_translation:
@@ -187,34 +194,40 @@ while True:
         aruco_marker_side_length,
         mtx,
         dst)
-        
-        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
+        centre = get_marker_centre(0)
+        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs, centre)
 
         for i, marker_id in enumerate(marker_ids):
             smoothed_pose = smoothed_poses[i]
-            tvec = smoothed_pose[:3]
+            tvec = smoothed_pose[1:3]
+            centre_corrected = smoothed_pose[0]
             roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]      
 
             roll_deg = round(roll_deg, 2)
             pitch_deg = round(pitch_deg, 2)
             yaw_deg = round(yaw_deg, 2)
-
+            real_yaw_deg = round(real_yaw, 2)
+            
             yaw_corrected.append(yaw_deg)
-            yaw_real.append(real_yaw)
+            yaw_real.append(real_yaw_deg)
+            
+            trans_corrected.append(centre_corrected)
+            trans_real.append(centre[0])
+            
             print(f"roll deg: {roll_deg:.2f}")
             print(f"pitch deg: {pitch_deg:.2f}")
             print(f"yaw deg: {yaw_deg:.2f}")
             
-            cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            #cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            #cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"corrected yaw deg: {yaw_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"real yaw deg: {real_yaw_deg:.2f}", (0, 350), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #distance from tag in cm
-            transform_translation_y = tvec[1] * 100
-            transform_translation_z = tvec[2] * 100
-            cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-            cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            transform_translation_z = tvec[1] * 100
+            #transform_translation_z = tvec[2] * 100
+            #cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
-            print(rvecs)
              
             # Draw the axes on the marker
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
@@ -223,41 +236,40 @@ while True:
             cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             SPEED_STRAFE_PID = int(SPEED_STRAFE + pid_centre(centre_x))
             SPEED_ROLL_PID = int(SPEED_ROLL + pid_angle(yaw_deg))
-            print(SPEED_STRAFE_PID)
+            print(f"SPEED_ROLL_PID: {SPEED_ROLL_PID}")
+            print(f"SPEED_STRAFE_PID: {SPEED_STRAFE_PID}")
             
-            # ~ if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
-                # ~ aligned_translation = False
-                # ~ last_marker_position = -1
-                # ~ dfu.strafe_left(SPEED_STRAFE_PID, ser)
-                # ~ cv2.putText(frame, f"strafe_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+            if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_translation = False
+                last_marker_position = -1
+                dfu.strafe_left(SPEED_STRAFE_PID, ser)
+                cv2.putText(frame, f"strafe_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
-            # ~ elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT:
-                # ~ aligned_translation = False
-                # ~ last_marker_position = 1
-                # ~ dfu.strafe_right(SPEED_STRAFE_PID, ser)
-                # ~ cv2.putText(frame, f"strafe_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+            elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_translation = False
+                last_marker_position = 1
+                dfu.strafe_right(SPEED_STRAFE_PID, ser)
+                cv2.putText(frame, f"strafe_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
-            # ~ else:
-                # ~ last_marker_position = 0
-                # ~ aligned_translation = True
-                # ~ print("translation aligned")
-                # ~ dfu.stop_all(ser)
-                
-            
-            if MARGIN_OF_ANGLE < yaw_deg < 90:
-                    aligned_rotation = False
-                    dfu.roll_left(SPEED_ROLL_PID, ser)
-                    cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
-                    
-            elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
-                    aligned_rotation = False
-                    dfu.roll_right(SPEED_ROLL_PID, ser)
-                    cv2.putText(frame, f"roll_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
-                    
             else:
-                    aligned_rotation = True
-                    print("rotation aligned")
-                    dfu.stop_all(ser)
+                last_marker_position = 0
+                aligned_translation = True
+                print("translation aligned")
+                dfu.stop_all(ser)
+            
+            # ~ if MARGIN_OF_ANGLE < yaw_deg < 90:
+                    # ~ aligned_rotation = False
+                    # ~ dfu.roll_left(SPEED_ROLL, ser)
+                    # ~ cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+            # ~ elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
+                    # ~ aligned_rotation = False
+                    # ~ dfu.roll_right(SPEED_ROLL, ser)
+                    # ~ cv2.putText(frame, f"roll_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+            # ~ else:
+                    # ~ aligned_rotation = True
+                    # ~ print("rotation aligned")
 
             # ~ if aligned_translation and aligned_rotation:
 
@@ -303,13 +315,13 @@ picam2.stop()
 cv2.destroyAllWindows()
 
 plt.figure(figsize=(8, 6))
+plt.plot(high_boundary)
+plt.plot(low_boundary)
 plt.plot(yaw_corrected, label="corrected yaw")
 plt.plot(yaw_real, label="real yaw")
+
 plt.xlabel("Frame")
 plt.ylabel("Angle")
-
 plt.legend()
 plt.grid()
-
-# Save the plot
-plt.savefig("aruco_yaw_kalman_graph.png")
+# ~ plt.savefig("aruco__kalman_graph.png")

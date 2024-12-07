@@ -4,28 +4,34 @@ from picamera2 import Picamera2
 from config import *
 import serial
 import time
+import driving_functions as dfu
+from scipy.spatial.transform import Rotation as R
+
+import math
+import matplotlib
+import matplotlib.pyplot as plt
+
+from libcamera import controls, Transform
+from simple_pid import PID
 
 
 picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration())
-
-# Start the camera
+picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}, transform = Transform(hflip=1, vflip=1)))
 picam2.start()
+picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
 
-max_pwm = 100
 
 data_array = []
 zeros_array = [0, 0, 0, 0]
 
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-ser.reset_input_buffer()
+arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+arduino_port.reset_input_buffer()
 time.sleep(2)
 
 while True:
     # Capture frame
     frame = picam2.capture_array()
     # Operations on the frame
-    frame = cv2.resize(frame, FRAME_DIMENSIONS)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_blurred = cv2.GaussianBlur(frame, (21, 21), 0)
     frame_gray = cv2.cvtColor(frame_blurred, cv2.COLOR_BGR2GRAY)
@@ -51,7 +57,7 @@ while True:
     lines = cv2.Canny(frame_gray, 50, 150)
 
     try:
-        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE ,cv2.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv2.findContours(masked_image, cv2.RETR_TREE ,cv2.CHAIN_APPROX_NONE)
         contour = max(contours, key = cv2.contourArea, default=0)
         cv2.drawContours(frame_draw, [contour], -1, (0, 255, 0), -1)
         [vx,vy,x,y] = cv2.fitLine(contour, cv2.DIST_L2,0,0.01,0.01)                         
@@ -59,17 +65,21 @@ while True:
         righty = int(((HEIGHT_OF_IMAGE-x)*vy/vx)+y)
         vy = float(vy)
         vx = float(vx)
-
-        if 0<vy<1:
-            line_angle = 180 - np.degrees(np.arctan(vy/vx))
-        elif -1<vy<0:
-            line_angle = np.degrees(np.arctan(np.abs(vy)/vx))
+        
+        vx = abs(vx-1)
+        
+        if vy<0:
+            vy = abs(vy+1)
+        elif vy>0:
+            vy = vy-1
         else:
-            line_angle = 90
-        line_angle = round(line_angle, 1)
+            line_angle = 0
+
+        line_angle = 2*np.arctan(vy/vx)/np.pi
+        line_angle = round(line_angle, 2)
         print(f"line_angle: {line_angle}")
 
-        cv2.line(frame_draw,(HEIGHT_OF_IMAGE-1,righty),(0,lefty),(0,255,255),5)
+        
     except Exception as e:
         print(e)
         pass
@@ -82,14 +92,17 @@ while True:
             offset = round(center_of_mass[0] - 0.5, 2)
             cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
             cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
+            cv2.line(frame_draw,(HEIGHT_OF_IMAGE,righty),(cX,cY),(0,255,255),5)
         print(f"contour offset: {offset}")
     else:
         pass
-    speed_L = int(max_pwm  + offset * 50) #adjust for line angle
-    speed_R = int(max_pwm  - offset * 50)
-    data_array = [speed_R, speed_L, speed_R, speed_L]
-    ser.write(bytes(data_array))
-    
+    speed_FR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
+    speed_FL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
+    speed_RR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
+    speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
+    print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}")
+    dfu.turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+
     # Display the resulting frame
     cv2.imshow('frame', frame)
     
@@ -99,4 +112,4 @@ while True:
 # When everything done, release the capture
 picam2.stop()
 cv2.destroyAllWindows()
-ser.write(bytes([0,0,0,0]))
+dfu.stop_all(arduino_port)

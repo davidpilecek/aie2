@@ -14,7 +14,12 @@ def drive_reverse(speed_drive, serial_port):
     data_array = [0, 0, 0, 0, speed_drive, speed_drive, speed_drive, speed_drive]
     serial_port.write(bytes(data_array))
     print("driving reverse")
-    
+
+def turn(speed_FR, speed_FL, speed_RR, speed_RL, serial_port):
+    data_array = [speed_FR, speed_FL, speed_RR, speed_RL, 0, 0, 0, 0]
+    serial_port.write(bytes(data_array))
+    print("turning")
+
 def turn_left(speed_turn, serial_port):
     data_array = [speed_turn, 0, speed_turn, 0, 0, 0, 0, 0]
     serial_port.write(bytes(data_array))
@@ -27,11 +32,11 @@ def turn_right(speed_turn, serial_port):
 def strafe_right(speed_strafe, serial_port):
     data_array = [0, speed_strafe, speed_strafe, 0, speed_strafe, 0, 0, speed_strafe]
     serial_port.write(bytes(data_array))
-    print("sliding R")
+    print("strafing R")
 def strafe_left(speed_strafe, serial_port):
     data_array = [speed_strafe, 0, 0, speed_strafe, 0, speed_strafe, speed_strafe, 0]
     serial_port.write(bytes(data_array))
-    print("slid l")
+    print("strafing L")
 def roll_left(speed_roll, serial_port):
     data_array = [0, 0, 0, speed_roll, 0, 0, speed_roll, 0]
     serial_port.write(bytes(data_array))
@@ -54,14 +59,22 @@ def stop_all(serial_port):
 speed_all = 16
 delay = 1
 
-
-
+SPEED_COEF = 0.7
+offset = -0.5
+angle = 0.5
 
 if __name__ == '__main__':
-    ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-    ser.reset_input_buffer()
+    arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+    arduino_port.reset_input_buffer()
     time.sleep(2)
-
-    stop_all(ser)
+    #speed_FR = int(MAX_SPEED + offset - angle)
+    speed_FR = int(SPEED_COEF - offset - angle)
+    speed_FL = int(SPEED_COEF + offset + angle)
+    speed_RR = int(SPEED_COEF - offset - angle)
+    speed_RL = int(SPEED_COEF + offset + angle)
+    turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+    
+    time.sleep(1)
+    stop_all(arduino_port)
     quit()    
     
