@@ -65,7 +65,7 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
         real_yaw = yaw
         
         # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([centre[0], tvec[0], tvec[2], roll, pitch, yaw], dtype=np.float32)
+        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
 
         # Predict the next state
         predicted = pose_filter.predict()
@@ -79,11 +79,9 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
     return smoothed_poses, real_yaw
 
 picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}))
-
-# Start the camera
+picam2.configure(picam2.create_video_configuration(main = {"size": FRAME_DIMENSIONS}, transform = Transform(hflip=1, vflip=1)))
 picam2.start()
-picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 5.0})
 
 #ARUCO
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
@@ -108,9 +106,6 @@ def get_marker_centre(marker_id):
     return centre
 #correction for size of calibration images
 aruco_marker_side_length = ARUCO_MARKER_SIZE / (1280/FRAME_DIMENSIONS[0])
-
-# Calibration parameters yaml file
-camera_calibration_parameters_filename = 'calibration_chessboard.yaml'
  
 # Load the camera parameters from the saved file
 cv_file = cv2.FileStorage(
@@ -130,7 +125,6 @@ while True:
     # Capture frame
     frame = picam2.capture_array()
     # Operations on the frame
-    frame = cv2.flip(frame, -1)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         
@@ -152,19 +146,18 @@ while True:
         for i, marker_id in enumerate(marker_ids):
 
             smoothed_pose = smoothed_poses[i]
-            tvec = smoothed_pose[1:3]
-            centre_corrected = smoothed_pose[0]
+            tvec = smoothed_pose[:3]
             roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
             
             roll_deg = round(roll_deg, 2)
             pitch_deg = round(pitch_deg, 2)
             yaw_deg = round(yaw_deg, 2)
 
-            yaw_corrected.append(yaw_deg)
-            yaw_real.append(real_yaw)
+            # ~ yaw_corrected.append(yaw_deg)
+            # ~ yaw_real.append(real_yaw)
             
-            trans_corrected.append(centre_corrected)
-            trans_real.append(centre[0])
+            # ~ trans_corrected.append(centre_corrected)
+            # ~ trans_real.append(centre[0])
             
             print(f"roll deg: {roll_deg:.2f}")
             print(f"pitch deg: {pitch_deg:.2f}")
@@ -175,8 +168,8 @@ while True:
             cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #distance from tag in cm
             transform_translation_x = tvec[0] * 100
-            transform_translation_z = tvec[2] * 100
-            transform_translation_y = tvec[1] * 100
+            transform_translation_z = tvec[1] * 100
+            transform_translation_y = tvec[2] * 100
             cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"translation x: {transform_translation_x:.2f}", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
@@ -210,12 +203,12 @@ plt.figure(figsize=(8, 6))
 # ~ plt.plot(yaw_corrected, label="corrected yaw")
 # ~ plt.plot(yaw_real, label="real yaw")
 
-plt.plot(trans_corrected, label="corrected translation")
-plt.plot(trans_real, label="real translation")
+# ~ plt.plot(trans_corrected, label="corrected translation")
+# ~ plt.plot(trans_real, label="real translation")
 
-plt.xlabel("Frame")
-plt.ylabel("Angle")
-plt.legend()
-plt.grid()
-plt.savefig("trans_kalman_graph.png")
+# ~ plt.xlabel("Frame")
+# ~ plt.ylabel("Angle")
+# ~ plt.legend()
+# ~ plt.grid()
+# ~ plt.savefig("trans_kalman_graph.png")
 # ~ plt.savefig("aruco__kalman_graph.png")

@@ -139,8 +139,8 @@ mtx = cv_file.getNode('K').mat()
 dst = cv_file.getNode('D').mat()
 cv_file.release()
     
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-ser.reset_input_buffer()
+arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+arduino_port.reset_input_buffer()
 time.sleep(2)
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -242,29 +242,29 @@ while True:
             if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
                 aligned_translation = False
                 last_marker_position = -1
-                dfu.strafe_left(SPEED_STRAFE_PID, ser)
+                dfu.strafe_left(SPEED_STRAFE_PID, arduino_port)
                 cv2.putText(frame, f"strafe_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
             elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT:
                 aligned_translation = False
                 last_marker_position = 1
-                dfu.strafe_right(SPEED_STRAFE_PID, ser)
+                dfu.strafe_right(SPEED_STRAFE_PID, arduino_port)
                 cv2.putText(frame, f"strafe_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 
             else:
                 last_marker_position = 0
                 aligned_translation = True
                 print("translation aligned")
-                dfu.stop_all(ser)
+                dfu.stop_all(arduino_port)
             
             # ~ if MARGIN_OF_ANGLE < yaw_deg < 90:
                     # ~ aligned_rotation = False
-                    # ~ dfu.roll_left(SPEED_ROLL, ser)
+                    # ~ dfu.roll_left(SPEED_ROLL, arduino_port)
                     # ~ cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                     
             # ~ elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
                     # ~ aligned_rotation = False
-                    # ~ dfu.roll_right(SPEED_ROLL, ser)
+                    # ~ dfu.roll_right(SPEED_ROLL, arduino_port)
                     # ~ cv2.putText(frame, f"roll_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                     
             # ~ else:
@@ -275,34 +275,34 @@ while True:
 
                 # ~ if transform_translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
                     # ~ aligned_distance = False
-                    # ~ dfu.drive_forward(SPEED_DRIVE, ser)
+                    # ~ dfu.drive_forward(SPEED_DRIVE, arduino_port)
                     # ~ cv2.putText(frame, f"drive_F", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                     
                 # ~ elif transform_translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
                     # ~ aligned_distance = False
-                    # ~ dfu.drive_reverse(SPEED_DRIVE, ser)
+                    # ~ dfu.drive_reverse(SPEED_DRIVE, arduino_port)
                     # ~ cv2.putText(frame, f"drive_R", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
                 # ~ else:
                     # ~ aligned_distance = True
-                    # ~ dfu.stop_all(ser)
+                    # ~ dfu.stop_all(arduino_port)
                     # ~ print("all aligned")
     
         except Exception as e:
             print(e)
             pass
     else:
-        dfu.stop_all(ser)
+        dfu.stop_all(arduino_port)
         marker_lost = True 
         
     if marker_lost:
         if last_marker_position == 1:
-            dfu.strafe_right(SPEED_STRAFE, ser)
+            dfu.strafe_right(SPEED_STRAFE, arduino_port)
             print("going right")
         elif last_marker_position == -1:
-            dfu.strafe_left(SPEED_STRAFE, ser)
+            dfu.strafe_left(SPEED_STRAFE, arduino_port)
             print("going left")
         elif last_marker_position == 0:
-            dfu.spin_left(SPEED_SPIN, ser)
+            dfu.spin_left(SPEED_SPIN, arduino_port)
     # Display the resulting frame
     cv2.imshow('frame', frame)
     out.write(frame)
@@ -310,7 +310,7 @@ while True:
         break
 
 # When everything done, release the capture
-dfu.stop_all(ser)
+dfu.stop_all(arduino_port)
 picam2.stop()
 cv2.destroyAllWindows()
 

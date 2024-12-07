@@ -15,14 +15,11 @@ from libcamera import controls, Transform
 from simple_pid import PID
 
 
-picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main = {"size": (640, 360)}, transform = Transform(hflip=1, vflip=1)))
-picam2.start()
-picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+picam2 = start_camera()
 
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
-data_array = []
-zeros_array = [0, 0, 0, 0]
 
 arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
 arduino_port.reset_input_buffer()
@@ -75,13 +72,14 @@ while True:
         else:
             line_angle = 0
 
-        line_angle = 2*np.arctan(vy/vx)/np.pi
+        line_angle = np.arctan(vy/vx) * (2/np.pi)
         line_angle = round(line_angle, 2)
         print(f"line_angle: {line_angle}")
 
         
     except Exception as e:
         print(e)
+        dfu.stop_all(arduino_port)
         pass
     if len(contours)>0:
         M = cv2.moments(contour)
@@ -93,21 +91,27 @@ while True:
             cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
             cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
             cv2.line(frame_draw,(HEIGHT_OF_IMAGE,righty),(cX,cY),(0,255,255),5)
-        print(f"contour offset: {offset}")
+
+        speed_FR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
+        speed_FL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
+        speed_RR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
+        speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
+    
+        print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}")
+        #dfu.turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
     else:
+        dfu.stop_all(arduino_port)
         pass
-    speed_FR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
-    speed_FL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
-    speed_RR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
-    speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
-    print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}")
-    dfu.turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+    
+    
 
     # Display the resulting frame
     cv2.imshow('frame', frame)
+    out.write(frame)
     
     if cv2.waitKey(1) == ord('q'):
         break
+        dfu.stop_all(arduino_port)
 
 # When everything done, release the capture
 picam2.stop()
