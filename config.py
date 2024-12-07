@@ -3,9 +3,6 @@ import numpy as np
 from libcamera import controls, Transform
 from picamera2 import Picamera2
 
-
-
-
 FRAME_DIMENSIONS = (640, 360)
 WIDTH_OF_IMAGE = FRAME_DIMENSIONS[0]
 HEIGHT_OF_IMAGE = FRAME_DIMENSIONS[1]
@@ -45,10 +42,15 @@ KALMAN_PROCESS_COEF = 1e-6               #Q
 KALMAN_MEASUREMENT_COEF = 5e-6          #R
 KALMAN_ERROR_COEF = 1
 
-
 def start_camera():
 	picam2 = Picamera2()
 	picam2.configure(picam2.create_video_configuration(main = {"size": FRAME_DIMENSIONS}, transform = Transform(hflip=1, vflip=1)))
 	picam2.start()
-	picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+	picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 5.0})
 	return picam2
+	
+def start_aruco():
+	dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+	detectorParams = cv2.aruco.DetectorParameters()
+	detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
+	return detector

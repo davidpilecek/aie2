@@ -12,7 +12,6 @@ matplotlib.use("Agg")
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
-
 # Define Kalman Filter
 class PoseKalmanFilter:
     def __init__(self):
@@ -48,7 +47,6 @@ class PoseKalmanFilter:
 # Create an instance of the Kalman filter
 pose_filter = PoseKalmanFilter()
 
-
 def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
     smoothed_poses = []
 
@@ -78,21 +76,12 @@ def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
 
     return smoothed_poses, real_yaw
 
-picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main = {"size": FRAME_DIMENSIONS}, transform = Transform(hflip=1, vflip=1)))
-picam2.start()
-picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 5.0})
+picam2 = start_camera()
 
 #ARUCO
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-detectorParams = cv2.aruco.DetectorParameters()
-detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
+detector = start_aruco()
 
 centered = False
-
-centre_of_frame = (int(FRAME_DIMENSIONS[0]/2),int(FRAME_DIMENSIONS[1]/2))
-
-aruco_dictionary_name = cv2.aruco.DICT_4X4_50
 
 def get_marker_centre(marker_id):
     centre_x1 = (int(corners[marker_id][0][0][0])+int(corners[marker_id][0][1][0]))/2
@@ -105,7 +94,7 @@ def get_marker_centre(marker_id):
     centre = (centre_x, centre_y)
     return centre
 #correction for size of calibration images
-aruco_marker_side_length = ARUCO_MARKER_SIZE / (1280/FRAME_DIMENSIONS[0])
+aruco_marker_side_length = ARUCO_MARKER_SIZE
  
 # Load the camera parameters from the saved file
 cv_file = cv2.FileStorage(
@@ -167,10 +156,10 @@ while True:
             cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             #distance from tag in cm
-            transform_translation_x = tvec[0] * 100
-            transform_translation_z = tvec[1] * 100
-            transform_translation_y = tvec[2] * 100
-            cv2.putText(frame, f"translation y: {transform_translation_y:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            transform_translation_z = tvec[2] * 100
+            transform_translation_x = tvec[1] * 100
+            transform_translation_y = tvec[0] * 100
+            cv2.putText(frame, f"real distance: {transform_translation_y * 100:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             cv2.putText(frame, f"translation x: {transform_translation_x:.2f}", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
             

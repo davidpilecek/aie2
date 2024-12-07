@@ -5,10 +5,7 @@ from config import *
 from libcamera import controls, Transform
 
 
-picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration(main = {"size": FRAME_DIMENSIONS}, transform = Transform(hflip=1, vflip=1)))
-picam2.start()
-picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 5.0})
+picam2 = start_camera()
 
 while True:
     # Capture frame-by-frame

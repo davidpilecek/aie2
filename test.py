@@ -9,11 +9,7 @@ from scipy.spatial.transform import Rotation as R
 import math
 #from functions import *
 
-picam2 = Picamera2()
-picam2.configure(picam2.create_video_configuration())
-
-# Start the camera
-picam2.start()
+picam2 = start_camera()
 
 aligned_translation = False
 aligned_rotation = False
@@ -67,8 +63,6 @@ detectorParams = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 aruco_marker_side_length = ARUCO_MARKER_SIZE / (1280/FRAME_DIMENSIONS[0])
 
-# Calibration parameters yaml file
-camera_calibration_parameters_filename = 'calibration_chessboard.yaml'
     
 # Load the camera parameters from the saved file
 cv_file = cv2.FileStorage(
@@ -137,34 +131,11 @@ while True:
             transform_translation_y = tvecs[i][0][1]
         #multiply by 100 to convert to cm
             transform_translation_z = tvecs[i][0][2] * 100 
-     
-            # Store the rotation information
-            rotation_matrix = np.eye(4)
-            rotation_matrix[0:3, 0:3] = cv2.Rodrigues(np.array(rvecs[i][0]))[0]
-            r = R.from_matrix(rotation_matrix[0:3, 0:3])
-            quat = r.as_quat()   
-             
-            # Quaternion format     
-            transform_rotation_x = quat[0] 
-            transform_rotation_y = quat[1] 
-            transform_rotation_z = quat[2] 
-            transform_rotation_w = quat[3] 
              
             # Euler angle format in radians
-            roll_x, pitch_y, yaw_z = euler_from_quaternion(transform_rotation_x, 
-                                                           transform_rotation_y, 
-                                                           transform_rotation_z, 
-                                                           transform_rotation_w)
-             
-            roll_x_deg = round(math.degrees(roll_x), 3)
-            pitch_y = math.degrees(pitch_y)
-            yaw_z = math.degrees(yaw_z)
+
             print("transform_translation_x: {}".format(transform_translation_x))
             print("transform_translation_z: {}".format(transform_translation_z))
-            print(f"roll_x in deg: {roll_x_deg}")
-            print("pitch_y: {}".format(pitch_y))
-            print("yaw_z: {}".format(yaw_z))
-             
             # Draw the axes on the marker
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
         try:            
