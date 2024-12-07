@@ -159,11 +159,11 @@ while True:
             roll_x_deg = round(math.degrees(roll_x), 3)
             pitch_y = math.degrees(pitch_y)
             yaw_z = math.degrees(yaw_z)
-            print("transform_translation_x: {}".format(transform_translation_x))
+            # ~ print("transform_translation_x: {}".format(transform_translation_x))
             print("transform_translation_z: {}".format(transform_translation_z))
-            print(f"roll_x in deg: {roll_x_deg}")
-            print("pitch_y: {}".format(pitch_y))
-            print("yaw_z: {}".format(yaw_z))
+            # ~ print(f"roll_x in deg: {roll_x_deg}")
+            #print("pitch_y: {}".format(pitch_y))
+            #print("yaw_z: {}".format(yaw_z))
              
             # Draw the axes on the marker
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
@@ -171,11 +171,69 @@ while True:
             centre_x, centre_y = get_marker_centre(0)
             cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
+            if centre_x < centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_translation = False
+                last_marker_position = -1
+                dfu.slide_left(SPEED_SLIDE, ser)
+                cv2.putText(frame, f"slide_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                
+            elif centre_x > centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_translation = False
+                last_marker_position = 1
+                dfu.slide_right(SPEED_SLIDE, ser)
+                cv2.putText(frame, f"slide_r", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                
+            else:
+                last_marker_position = 0
+                aligned_translation = True
+                print("translation aligned")
+                
+                if 90 < roll_x_deg < 180 - MARGIN_OF_ANGLE:
+                    aligned_rotation = False
+                    dfu.roll_left(SPEED_ROLL, ser)
+                    cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+                elif -180 + MARGIN_OF_ANGLE < roll_x_deg < -90:
+                    aligned_rotation = False
+                    dfu.roll_right(SPEED_ROLL, ser)
+                    cv2.putText(frame, f"roll_l", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+                else:
+                    aligned_rotation = True
+                    print("rotation aligned")
+
+            if aligned_translation and aligned_rotation:
+
+                if transform_translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
+                    aligned_distance = False
+                    dfu.drive_forward(SPEED_DRIVE, ser)
+                    cv2.putText(frame, f"drive_F", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                    
+                elif transform_translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
+                    aligned_distance = False
+                    dfu.drive_reverse(SPEED_DRIVE, ser)
+                    cv2.putText(frame, f"drive_R", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2, cv2.LINE_AA)
+                else:
+                    aligned_distance = True
+                    dfu.stop_all(ser)
+                    print("all aligned")
     
         except Exception as e:
             print(e)
             pass
+    else:
+        dfu.stop_all(ser)
+        marker_lost = True 
         
+    if marker_lost:
+        if last_marker_position == 1:
+            dfu.slide_right(SPEED_SLIDE, ser)
+            print("going right")
+        elif last_marker_position == -1:
+            dfu.slide_left(SPEED_SLIDE, ser)
+            print("going left")
+        elif last_marker_position == 0:
+            dfu.spin_left(SPEED_SPIN, ser)
     # Display the resulting frame
     cv2.imshow('frame', frame)
     out.write(frame)
