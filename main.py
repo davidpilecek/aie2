@@ -18,7 +18,7 @@ from config import *
 from camera_functions import *
 
 #state variables
-aligned_translation = False
+aligned_center = False
 aligned_rotation = False
 aligned_distance = False
 
@@ -26,10 +26,24 @@ marker_state_holder = False
 seeing_marker = False
 marker_lost = True
 
+
 last_marker_position = 0             # -1 = left, 1 = right, 0 = no marker seen
 
-# marker alignment = 0; line following = 1
-select_task = 1
+select_task = 1                      # marker alignment = 0; line following = 1
+
+
+#PID settings for each parameter of marker alignment
+pid_centre = PID(0.1, 0.02, 0, setpoint = CENTRE_OF_FRAME[0])
+pid_centre.sample_time = 0.01
+pid_centre.output_limits = (-3, 0)
+
+pid_angle = PID(0.1, 0.02, 0.001, setpoint = 0)
+pid_angle.sample_time = 0.01
+pid_angle.output_limits = (-2, 2)
+
+pid_distance = PID(0.1, 0, 0, setpoint = DISTANCE_FROM_MARKER)
+pid_distance.sample_time = 0.01
+pid_distance.output_limits = (-3, 0)
 
 #initialize camera
 picam2 = start_camera()
@@ -62,70 +76,84 @@ while True:
     frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
             
             
-        if marker_ids is not None:
-            if marker_state_holder == False:
-                marker_state_holder = True
-            marker_lost = False
-                #detect markers               
-            
-               # Get the rotation and translation vectors
-            rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(
-            corners,
-            ARUCO_MARKER_SIZE,
-            mtx,
-            dst)
-            centre = get_marker_centre(0, corners)
-            smoothed_poses, real_yaw = smooth_pose_estimation(marker_ids, rvecs, tvecs, pose_filter)
+    if marker_ids is not None:
+        if marker_state_holder == False:
+            marker_state_holder = True
+        marker_lost = False
+            #detect markers               
+        
+            # Get the rotation and translation vectors
+        rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(
+        corners,
+        ARUCO_MARKER_SIZE,
+        mtx,
+        dst)
+        centre = get_marker_centre(0, corners)
+        smoothed_poses, real_yaw = smooth_pose_estimation(marker_ids, rvecs, tvecs, pose_filter)
 
-            for i, marker_id in enumerate(marker_ids):
+        for i, marker_id in enumerate(marker_ids):
 
-                    smoothed_pose = smoothed_poses[i]
-                    tvec = smoothed_pose[:3]
-                    roll_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
-                    
-                    roll_deg = round(roll_deg, 2)
-                    pitch_deg = round(pitch_deg, 2)
-                    yaw_deg = round(yaw_deg, 2)
+                smoothed_pose = smoothed_poses[i]
+                tvec = smoothed_pose[:3]
+                drift_deg, pitch_deg, yaw_deg = smoothed_pose[3:]
+                
+                drift_deg = round(drift_deg, 2)
+                pitch_deg = round(pitch_deg, 2)
+                yaw_deg = round(yaw_deg, 2)
 
-                    # ~ yaw_corrected.append(yaw_deg)
-                    # ~ yaw_real.append(real_yaw)
-                    
-                    # ~ trans_corrected.append(centre_corrected)
-                    # ~ trans_real.append(centre[0])
-                    
-                    # ~ print(f"roll deg: {roll_deg:.2f}")
-                    # ~ print(f"pitch deg: {pitch_deg:.2f}")
-                    # ~ print(f"yaw deg: {yaw_deg:.2f}")
-                    
-                    # ~ cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    # ~ cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    
-                    #distances from tag in cm
-                    transform_translation_x = tvec[0] * 100
-                    transform_translation_y = tvec[1] * 100
-                    transform_translation_z = tvec[2] * 100
-                    
-                    cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                # ~ yaw_corrected.append(yaw_deg)
+                # ~ yaw_real.append(real_yaw)
+                
+                # ~ trans_corrected.append(centre_corrected)
+                # ~ trans_real.append(centre[0])
+                
+                # ~ print(f"drift deg: {drift_deg:.2f}")
+                # ~ print(f"pitch deg: {pitch_deg:.2f}")
+                # ~ print(f"yaw deg: {yaw_deg:.2f}")
+                
+                # ~ cv2.putText(frame, f"drift deg: {drift_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                # ~ cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                
+                #distances from tag in cm
+                transform_translation_x = tvec[0] * 100
+                transform_translation_y = tvec[1] * 100
+                translation_z = tvec[2] * 100
 
-                    cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)            
-            
+
+
+                cv2.putText(frame, f"translation z: {translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+
+                cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
+        centre_x, centre_y = get_marker_centre(0)            
+        cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5, cv2.LINE_AA)
+        speed_strafe_pid = int(SPEED_STRAFE + pid_centre(centre_x))
+        speed_drift_pid = int(SPEED_DRIFT + pid_angle(yaw_deg))
+        speed_drive_pid = int(SPEED_DRIVE + pid_distance(translation_z))
             
             
     if(select_task == 0):
         
-        if aligned_translation:
+        if aligned_center:
             color_of_line = (0,255,0)
         else:
             color_of_line = (0,0,255)
         #show borders for translation alignment of marker
         cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
         cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
-    
+        try:
+            if not aligned_center:
+                aligned_center, last_marker_position = dfu.align_center(centre_x, speed_strafe_pid, arduino_port)
+            elif aligned_center and not aligned_rotation:
+                aligned_rotation = dfu.align_rotation(yaw_deg, speed_drift_pid, arduino_port)   
+            elif aligned_center and aligned_rotation and not aligned_distance:
+                aligned_distance = dfu.align_distance(translation_z, speed_drive_pid, arduino_port)
+            elif aligned_center and aligned_rotation and aligned_distance:
+                dfu.stop_all(arduino_port)
+                print("all aligned")
+        except Exception as e:
+            print(e)
 
-                    
-                    
-                    
     elif(select_task == 1):
 
         masked_image, frame_draw = create_mask(frame, frame_blurred, frame_gray)

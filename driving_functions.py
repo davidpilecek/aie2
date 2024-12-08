@@ -45,15 +45,15 @@ def strafe_left(speed_strafe, serial_port):
     serial_port.write(bytes(data_array))
     print("strafing L")
 
-def roll_left(speed_roll, serial_port):
-    data_array = [0, 0, 0, speed_roll, 0, 0, speed_roll, 0]
+def drift_left(speed_drift, serial_port):
+    data_array = [0, 0, 0, speed_drift, 0, 0, speed_drift, 0]
     serial_port.write(bytes(data_array))
-    print("roll l")
+    print("drift l")
 
-def roll_right(speed_roll, serial_port):
-    data_array = [0, 0, speed_roll, 0, 0, 0, 0, speed_roll]
+def drift_right(speed_drift, serial_port):
+    data_array = [0, 0, speed_drift, 0, 0, 0, 0, speed_drift]
     serial_port.write(bytes(data_array))
-    print("roll r")
+    print("drift r")
 
 def spin_left(speed_spin, serial_port):
     data_array = [speed_spin, 0, speed_spin, 0, 0, speed_spin, 0, speed_spin]
@@ -67,6 +67,55 @@ def spin_right(speed_spin, serial_port):
 
 def stop_all(serial_port):
     serial_port.write(bytes(zeros_array))
+
+
+def align_center(centre_x, speed_strafe, serial_port):
+    if centre_x < CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT:
+        aligned_center = False
+        last_marker_position = -1
+        strafe_left(speed_strafe, serial_port)
+        
+    elif centre_x > CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT:
+        aligned_center = False
+        last_marker_position = 1
+        strafe_right(speed_strafe, serial_port)
+        
+    else:
+        last_marker_position = 0
+        aligned_center = True
+        print("translation aligned")
+
+    return aligned_center, last_marker_position
+
+
+def align_distance(transform_translation_z,  serial_port):
+    if transform_translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
+        aligned_distance = False
+        drive_forward(SPEED_DRIVE, serial_port)
+        
+    elif transform_translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
+        aligned_distance = False
+        drive_reverse(SPEED_DRIVE, serial_port)
+    else:
+        aligned_distance = True
+        print("all aligned")
+    return aligned_distance
+
+
+def align_rotation(yaw_deg, speed_drift, serial_port):
+
+    if MARGIN_OF_ANGLE < yaw_deg < 90:
+        aligned_rotation = False
+        drift_left(speed_drift, serial_port)
+        
+    elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
+        aligned_rotation = False
+        drift_right(speed_drift, serial_port)
+       
+    else:
+        aligned_rotation = True
+        print("rotation aligned")
+    return aligned_rotation
 
 
 
