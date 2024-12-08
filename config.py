@@ -54,3 +54,14 @@ def start_aruco():
 	detectorParams = cv2.aruco.DetectorParameters()
 	detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
 	return detector
+
+def get_marker_centre(marker_id, corners):
+    centre_x1 = (int(corners[marker_id][0][0][0])+int(corners[marker_id][0][1][0]))/2
+    centre_x2 = (int(corners[marker_id][0][2][0])+int(corners[marker_id][0][3][0]))/2
+    centre_x = int((centre_x1+centre_x2)/2)
+
+    centre_y1 = (int(corners[marker_id][0][0][1])+int(corners[marker_id][0][1][1]))/2
+    centre_y2 = (int(corners[marker_id][0][2][1])+int(corners[marker_id][0][3][1]))/2
+    centre_y = int((centre_y1+centre_y2)/2) 
+    
+    return centre_x, centre_y

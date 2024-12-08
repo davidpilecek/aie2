@@ -195,7 +195,7 @@ while True:
         mtx,
         dst)
         centre = get_marker_centre(0)
-        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs, centre)
+        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs, centre, pose_filter)
 
         for i, marker_id in enumerate(marker_ids):
             smoothed_pose = smoothed_poses[i]
