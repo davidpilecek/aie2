@@ -28,7 +28,7 @@ marker_lost = True
 
 last_marker_position = 0             # -1 = left, 1 = right, 0 = no marker seen
 
-# line following = 0; marker alignment = 1
+# marker alignment = 0; line following = 1
 select_task = 1
 
 #initialize camera
@@ -57,25 +57,17 @@ while True:
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame_blurred = cv2.GaussianBlur(frame_gray, (21, 21), 0)
 
-    if aligned_translation:
-        color_of_line = (0,255,0)
-    else:
-        color_of_line = (0,0,255)
 
-    #detect markers
-    corners, marker_ids, rejectedImgPoints = detector.detectMarkers(gray)
-    
-    #show borders for translation alignment of marker
-    if(select_task == 0):
-        cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
-        cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
-    
+    corners, marker_ids, rejectedImgPoints = detector.detectMarkers(frame_gray)
+    frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
+            
+            
         if marker_ids is not None:
             if marker_state_holder == False:
                 marker_state_holder = True
             marker_lost = False
-
-            frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
+                #detect markers               
+            
                # Get the rotation and translation vectors
             rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(
             corners,
@@ -116,7 +108,24 @@ while True:
                     
                     cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
 
-                    cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
+                    cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)            
+            
+            
+            
+    if(select_task == 0):
+        
+        if aligned_translation:
+            color_of_line = (0,255,0)
+        else:
+            color_of_line = (0,0,255)
+        #show borders for translation alignment of marker
+        cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
+        cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
+    
+
+                    
+                    
+                    
     elif(select_task == 1):
 
         masked_image, frame_draw = create_mask(frame, frame_blurred, frame_gray)
@@ -143,6 +152,7 @@ while True:
     if cv2.waitKey(1) == ord('q'):
         break
 
+dfu.stop_all(arduino_port)
 picam2.stop()
 cv2.destroyAllWindows()
     
