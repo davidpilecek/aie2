@@ -53,7 +53,14 @@ def start_aruco():
 	dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 	detectorParams = cv2.aruco.DetectorParameters()
 	detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
-	return detector
+
+	# Load the camera parameters from the saved file
+	cv_file = cv2.FileStorage(
+    	camera_calibration_parameters_filename, cv2.FILE_STORAGE_READ) 
+	mtx = cv_file.getNode('K').mat()
+	dst = cv_file.getNode('D').mat()
+	cv_file.release()
+	return detector, mtx, dst
 
 def get_marker_centre(marker_id, corners):
     centre_x1 = (int(corners[marker_id][0][0][0])+int(corners[marker_id][0][1][0]))/2
