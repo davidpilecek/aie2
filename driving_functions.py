@@ -88,17 +88,17 @@ def align_center(centre_x, speed_strafe, serial_port):
     return aligned_center, last_marker_position
 
 
-def align_distance(transform_translation_z,  serial_port):
+def align_distance(transform_translation_z, speed_drive, serial_port):
     if transform_translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
         aligned_distance = False
-        drive_forward(SPEED_DRIVE, serial_port)
+        drive_forward(speed_drive, serial_port)
         
     elif transform_translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
         aligned_distance = False
-        drive_reverse(SPEED_DRIVE, serial_port)
+        drive_reverse(speed_drive, serial_port)
     else:
         aligned_distance = True
-        print("all aligned")
+        print("distance aligned")
     return aligned_distance
 
 

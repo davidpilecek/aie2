@@ -29,7 +29,7 @@ marker_lost = True
 
 last_marker_position = 0             # -1 = left, 1 = right, 0 = no marker seen
 
-select_task = 1                      # marker alignment = 0; line following = 1
+select_task = 0                      # marker alignment = 0; line following = 1
 
 
 #PID settings for each parameter of marker alignment
@@ -88,7 +88,9 @@ while True:
         ARUCO_MARKER_SIZE,
         mtx,
         dst)
-        centre = get_marker_centre(0, corners)
+        centre_x, centre_y = get_marker_centre(0, corners)
+        cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5, cv2.LINE_AA)
+                
         smoothed_poses, real_yaw = smooth_pose_estimation(marker_ids, rvecs, tvecs, pose_filter)
 
         for i, marker_id in enumerate(marker_ids):
@@ -124,14 +126,16 @@ while True:
 
                 cv2.putText(frame, f"translation z: {translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
 
-                cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
-        centre_x, centre_y = get_marker_centre(0)            
-        cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 5, cv2.LINE_AA)
+                cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)        
+
         speed_strafe_pid = int(SPEED_STRAFE + pid_centre(centre_x))
         speed_drift_pid = int(SPEED_DRIFT + pid_angle(yaw_deg))
         speed_drive_pid = int(SPEED_DRIVE + pid_distance(translation_z))
-            
-            
+        
+        speed_strafe = SPEED_STRAFE
+        speed_drift = SPEED_DRIFT
+        speed_drive = SPEED_DRIVE
+        serial_port = arduino_port
     if(select_task == 0):
         
         if aligned_center:
@@ -142,15 +146,44 @@ while True:
         cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
         cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
         try:
-            if not aligned_center:
-                aligned_center, last_marker_position = dfu.align_center(centre_x, speed_strafe_pid, arduino_port)
-            elif aligned_center and not aligned_rotation:
-                aligned_rotation = dfu.align_rotation(yaw_deg, speed_drift_pid, arduino_port)   
-            elif aligned_center and aligned_rotation and not aligned_distance:
-                aligned_distance = dfu.align_distance(translation_z, speed_drive_pid, arduino_port)
-            elif aligned_center and aligned_rotation and aligned_distance:
+            
+            if centre_x < CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_center = False
+                last_marker_position = -1
+                dfu.strafe_left(speed_strafe, serial_port)
+            elif centre_x > CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT:
+                aligned_center = False
+                last_marker_position = 1
+                dfu.strafe_right(speed_strafe, serial_port)
+            else:
+                last_marker_position = 0
+                aligned_center = True
+                print("translation aligned")
+                
+            if MARGIN_OF_ANGLE < yaw_deg < 90:
+                aligned_rotation = False
+                dfu.drift_left(speed_drift, serial_port)
+            elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
+                aligned_rotation = False
+                dfu.drift_right(speed_drift, serial_port)
+            else:
+                aligned_rotation = True
+                print("rotation aligned")
+                
+            if translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
+                aligned_distance = False
+                dfu.drive_forward(speed_drive, serial_port)
+            elif translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
+                aligned_distance = False
+                dfu.drive_reverse(speed_drive, serial_port)
+            else:
+                aligned_distance = True
+                print("distance aligned")
+                
+            if aligned_center and aligned_rotation and aligned_distance:
                 dfu.stop_all(arduino_port)
                 print("all aligned")
+                
         except Exception as e:
             print(e)
 
