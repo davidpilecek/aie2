@@ -29,8 +29,8 @@ marker_lost = True
 
 last_marker_position = 0             # -1 = left, 1 = right, 0 = no marker seen
 
-do_alignment = True
-
+# line following = 0; marker alignment = 1
+select_task = 1
 
 #initialize camera
 picam2 = start_camera()
@@ -66,26 +66,26 @@ while True:
     corners, marker_ids, rejectedImgPoints = detector.detectMarkers(gray)
     
     #show borders for translation alignment of marker
-    if(do_alignment):
-        cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_center, 3)
-        cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_center, 3)
+    if(select_task == 0):
+        cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
+        cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_line, 3)
     
-    if marker_ids is not None:
-        if marker_state_holder == False:
-            marker_state_holder = True
-        marker_lost = False
+        if marker_ids is not None:
+            if marker_state_holder == False:
+                marker_state_holder = True
+            marker_lost = False
 
-        frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
-           # Get the rotation and translation vectors
-        rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(
-        corners,
-        ARUCO_MARKER_SIZE,
-        mtx,
-        dst)
-        centre = get_marker_centre(0, corners)
-        smoothed_poses, real_yaw = smooth_pose_estimation(marker_ids, rvecs, tvecs, pose_filter)
+            frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
+               # Get the rotation and translation vectors
+            rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(
+            corners,
+            ARUCO_MARKER_SIZE,
+            mtx,
+            dst)
+            centre = get_marker_centre(0, corners)
+            smoothed_poses, real_yaw = smooth_pose_estimation(marker_ids, rvecs, tvecs, pose_filter)
 
-        for i, marker_id in enumerate(marker_ids):
+            for i, marker_id in enumerate(marker_ids):
 
                     smoothed_pose = smoothed_poses[i]
                     tvec = smoothed_pose[:3]
@@ -101,24 +101,21 @@ while True:
                     # ~ trans_corrected.append(centre_corrected)
                     # ~ trans_real.append(centre[0])
                     
-                    print(f"roll deg: {roll_deg:.2f}")
-                    print(f"pitch deg: {pitch_deg:.2f}")
-                    print(f"yaw deg: {yaw_deg:.2f}")
+                    # ~ print(f"roll deg: {roll_deg:.2f}")
+                    # ~ print(f"pitch deg: {pitch_deg:.2f}")
+                    # ~ print(f"yaw deg: {yaw_deg:.2f}")
                     
-                    cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                    # ~ cv2.putText(frame, f"roll deg: {roll_deg:.2f}", (0, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                    # ~ cv2.putText(frame, f"pitch deg: {pitch_deg:.2f}", (0, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
                     cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    #distance from tag in cm
-                    transform_translation_z = tvec[2] * 100
-                    transform_translation_x = tvec[1] * 100
-                    transform_translation_y = tvec[0] * 100
-                    cv2.putText(frame, f"real distance: {transform_translation_y * 100:.2f}", (0, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                    cv2.putText(frame, f"translation x: {transform_translation_x:.2f}", (0, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
                     
-                    #draw_array = np.array([roll_deg, pitch_deg, yaw_deg], dtype = np.float32)
-                    print(rvecs)
-                    #print(draw_array)
+                    #distances from tag in cm
+                    transform_translation_x = tvec[0] * 100
+                    transform_translation_y = tvec[1] * 100
+                    transform_translation_z = tvec[2] * 100
+                    
+                    cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+
                     cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
 
 
