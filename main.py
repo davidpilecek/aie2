@@ -1,6 +1,4 @@
 import cv2
-from picamera2 import Picamera2
-from libcamera import controls
 
 import serial
 import time
@@ -17,6 +15,7 @@ from simple_pid import PID
 
 from kalman import *
 from config import *
+from camera_functions import *
 
 #state variables
 aligned_translation = False
@@ -55,7 +54,8 @@ while True:
     #capture frame and convert to grayscale
     frame = picam2.capture_array()
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame_blurred = cv2.GaussianBlur(frame_gray, (21, 21), 0)
 
     if aligned_translation:
         color_of_line = (0,255,0)
@@ -117,7 +117,23 @@ while True:
                     cv2.putText(frame, f"translation z: {transform_translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
 
                     cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
+    elif(select_task == 1):
 
+        masked_image, frame_draw = create_mask(frame, frame_blurred, frame_gray)
+        try:
+            contours, max_contour, frame_draw = get_contours(masked_image, frame_draw)
+        except Exception as e:
+            print(e)
+
+        if len(contours)>0:
+            line_angle, frame_draw = get_line_angle(max_contour, frame_draw)  
+            offset, frame_draw = get_offset(max_contour, frame_draw)
+            dfu.turn(line_angle, offset, arduino_port)
+
+        else:
+            print("no contours")
+            dfu.stop_all(arduino_port)
+        frame = frame_draw
 
     #Display the final frame
     cv2.imshow('frame', frame)

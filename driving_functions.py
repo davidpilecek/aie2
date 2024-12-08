@@ -1,5 +1,6 @@
 import serial
 import time
+from config import *
 
 zeros_array = [0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -15,7 +16,11 @@ def drive_reverse(speed_drive, serial_port):
     serial_port.write(bytes(data_array))
     print("driving reverse")
 
-def turn(speed_FR, speed_FL, speed_RR, speed_RL, serial_port):
+def turn(line_angle, offset, serial_port):
+    speed_FR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
+    speed_FL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
+    speed_RR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
+    speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
     data_array = [speed_FR, speed_FL, speed_RR, speed_RL, 0, 0, 0, 0]
     serial_port.write(bytes(data_array))
     print("turning")
@@ -29,32 +34,41 @@ def turn_right(speed_turn, serial_port):
     data_array = [0, speed_turn, 0, speed_turn, 0, 0, 0, 0]
     serial_port.write(bytes(data_array))
     print("turning right")
+
 def strafe_right(speed_strafe, serial_port):
     data_array = [0, speed_strafe, speed_strafe, 0, speed_strafe, 0, 0, speed_strafe]
     serial_port.write(bytes(data_array))
     print("strafing R")
+
 def strafe_left(speed_strafe, serial_port):
     data_array = [speed_strafe, 0, 0, speed_strafe, 0, speed_strafe, speed_strafe, 0]
     serial_port.write(bytes(data_array))
     print("strafing L")
+
 def roll_left(speed_roll, serial_port):
     data_array = [0, 0, 0, speed_roll, 0, 0, speed_roll, 0]
     serial_port.write(bytes(data_array))
     print("roll l")
+
 def roll_right(speed_roll, serial_port):
     data_array = [0, 0, speed_roll, 0, 0, 0, 0, speed_roll]
     serial_port.write(bytes(data_array))
     print("roll r")
+
 def spin_left(speed_spin, serial_port):
     data_array = [speed_spin, 0, speed_spin, 0, 0, speed_spin, 0, speed_spin]
     serial_port.write(bytes(data_array))
     print("spin l")
+
 def spin_right(speed_spin, serial_port):
     data_array = [0, speed_spin, 0, speed_spin, speed_spin, 0, speed_spin, 0]
     serial_port.write(bytes(data_array))
     print("spin r")
+
 def stop_all(serial_port):
     serial_port.write(bytes(zeros_array))
+
+
 
 speed_all = 16
 delay = 1

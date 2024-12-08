@@ -47,7 +47,7 @@ class PoseKalmanFilter:
 # Create an instance of the Kalman filter
 pose_filter = PoseKalmanFilter()
 
-def smooth_pose_estimation(corners, ids, rvecs, tvecs, centre):
+def smooth_pose_estimation(corners, ids, rvecs, tvecs):
     smoothed_poses = []
 
     for i in range(len(ids)):
@@ -129,7 +129,7 @@ while True:
         mtx,
         dst)
         centre = get_marker_centre(0)
-        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs, centre)
+        smoothed_poses, real_yaw = smooth_pose_estimation(corners, marker_ids, rvecs, tvecs)
         
 
         for i, marker_id in enumerate(marker_ids):

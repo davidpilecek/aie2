@@ -45,13 +45,13 @@ while True:
         (WIDTH_OF_IMAGE, HEIGHT_OF_IMAGE),
         (WIDTH_OF_IMAGE, height_1)
     ]
+
     vertices = np.array([vertices], np.int32)
     mask_black = np.zeros_like(mask)
     match_mask_color = [255, 255, 255]
     cv2.fillPoly(mask_black, vertices, match_mask_color)
     masked_image = cv2.bitwise_and(mask, mask_black)
     frame_draw = frame
-    lines = cv2.Canny(frame_gray, 50, 150)
 
     try:
         contours, hierarchy = cv2.findContours(masked_image, cv2.RETR_TREE ,cv2.CHAIN_APPROX_NONE)
@@ -75,12 +75,12 @@ while True:
         line_angle = np.arctan(vy/vx) * (2/np.pi)
         line_angle = round(line_angle, 2)
         print(f"line_angle: {line_angle}")
-
         
     except Exception as e:
         print(e)
         dfu.stop_all(arduino_port)
         pass
+
     if len(contours)>0:
         M = cv2.moments(contour)
         if(M["m10"] !=0 and M["m01"] !=0 and M["m00"] !=0):
@@ -98,20 +98,19 @@ while True:
         speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
     
         print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}")
-        #dfu.turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+        dfu.turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+    
     else:
         dfu.stop_all(arduino_port)
         pass
     
-    
-
     # Display the resulting frame
     cv2.imshow('frame', frame)
     out.write(frame)
     
     if cv2.waitKey(1) == ord('q'):
         break
-        dfu.stop_all(arduino_port)
+        
 
 # When everything done, release the capture
 picam2.stop()
