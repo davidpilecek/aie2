@@ -1,6 +1,11 @@
 import numpy as np
 import cv2
 from config import *
+import scipy.signal
+from collections import deque
+
+
+
 
 # Define Kalman Filter
 class PoseKalmanFilter:
@@ -34,13 +39,15 @@ class PoseKalmanFilter:
     def correct(self, measurement):
         return self.kalman.correct(measurement)
 
-def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter):
+def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter, pre_filter, post_filter):
     smoothed_poses = []
-
+        
+        
     for i in range(len(ids)):
         # Extract raw measurements (translation and rotation vectors)
         tvec = tvecs[i].flatten()
         rvec = rvecs[i].flatten()
+        median_yaw = 0
         
         # Convert rotation vector to Euler angles (roll, pitch, yaw)
         rotation_matrix, _ = cv2.Rodrigues(rvec)
@@ -48,9 +55,20 @@ def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter):
         roll, yaw, pitch = euler_angles.flatten()
         
         real_yaw = yaw
+        pre_filter.append(real_yaw)
         
-        # Construct measurement vector: [x, y, z, roll, pitch, yaw]
-        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, pitch, yaw], dtype=np.float32)
+        medfilt_input = list(pre_filter)
+        print(f"in:{medfilt_input}")
+        post_filter = (scipy.signal.medfilt(medfilt_input, kernel_size = 5))
+        
+        filtered_list = list(post_filter)
+        print(f"post: {filtered_list}")
+        
+        if len(post_filter)>4:
+            median_yaw = post_filter[4]
+        
+        # Construct measurement vector: [x, y, z, roll, median-filtered yaw, yaw]
+        measurement = np.array([tvec[0], tvec[1], tvec[2], roll, median_yaw, yaw], dtype=np.float32)
 
         # Predict the next state
         predicted = pose_filter.predict()
@@ -61,4 +79,4 @@ def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter):
         # Save the corrected pose for use
         smoothed_poses.append(corrected[:6])
 
-    return smoothed_poses, real_yaw
+    return smoothed_poses, real_yaw, median_yaw
