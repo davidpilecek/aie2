@@ -6,7 +6,6 @@ from collections import deque
 
 
 
-
 # Define Kalman Filter
 class PoseKalmanFilter:
     def __init__(self):
@@ -39,15 +38,14 @@ class PoseKalmanFilter:
     def correct(self, measurement):
         return self.kalman.correct(measurement)
 
+
 def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter, pre_filter, post_filter):
     smoothed_poses = []
-        
         
     for i in range(len(ids)):
         # Extract raw measurements (translation and rotation vectors)
         tvec = tvecs[i].flatten()
         rvec = rvecs[i].flatten()
-        
         
         # Convert rotation vector to Euler angles (roll, pitch, yaw)
         rotation_matrix, _ = cv2.Rodrigues(rvec)
@@ -58,11 +56,11 @@ def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter, pre_filter, post_filt
         real_yaw = yaw
         pre_filter.append(real_yaw)
         
+        # Use median filter to get rid of outliers or spike
         medfilt_input = list(pre_filter)
         post_filter = (scipy.signal.medfilt(medfilt_input, kernel_size = 5))
         
-        filtered_list = list(post_filter)
-
+        # Save last angle after filtering
         if len(post_filter)>4:
             median_yaw = post_filter[4]
         

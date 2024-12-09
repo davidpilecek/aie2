@@ -1,159 +1,270 @@
-import numpy as np
 import cv2
-from picamera2 import Picamera2
-from config import *
 import serial
 import time
-import driving_functions as dfu
-from scipy.spatial.transform import Rotation as R
 import math
-#from functions import *
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+import scipy.signal
+from scipy.spatial.transform import Rotation as R
+from collections import deque
+from simple_pid import PID
 
-picam2 = start_camera()
+# Import custom modules
+import driving_functions as dfu
+from kalman import *
+from config import *
+from camera_functions import *
 
-aligned_translation = False
+# Configure matplotlib
+matplotlib.use("Agg")
+
+# Initialize filter queues
+pre_filter = deque(maxlen=5)
+post_filter = deque(maxlen=5)
+
+# State variables
+aligned_center = False
 aligned_rotation = False
 aligned_distance = False
-
-marker_state_holder = False            #holder for if marker is lost
+marker_state_holder = False
 seeing_marker = False
 marker_lost = True
+last_marker_position = 0  # -1 = left, 1 = right, 0 = no marker seen
+select_task = 1  # 0 = no tasks; 1 = line following; 2 = marker alignment
 
-last_marker_position = 0             # -1 = left, 1 = right 
+# PID settings for marker alignment
+pid_centre = PID(0.1, 0.02, 0, setpoint=CENTRE_OF_FRAME[0])
+pid_centre.sample_time = 0.01
+pid_centre.output_limits = (-1, 0)
 
-centre_of_frame = (int(FRAME_DIMENSIONS[0]/2),int(FRAME_DIMENSIONS[1]/2))
+pid_angle = PID(0.1, 0.02, 0.001, setpoint=0)
+pid_angle.sample_time = 0.01
+pid_angle.output_limits = (-2, 2)
 
-def euler_from_quaternion(x, y, z, w):
-  """
-  Convert a quaternion into euler angles (roll, pitch, yaw)
-  roll is rotation around x in radians (counterclockwise)
-  pitch is rotation around y in radians (counterclockwise)
-  yaw is rotation around z in radians (counterclockwise)
-  """
-  t0 = +2.0 * (w * x + y * z)
-  t1 = +1.0 - 2.0 * (x * x + y * y)
-  roll_x = math.atan2(t0, t1)
-      
-  t2 = +2.0 * (w * y - z * x)
-  t2 = +1.0 if t2 > +1.0 else t2
-  t2 = -1.0 if t2 < -1.0 else t2
-  pitch_y = math.asin(t2)
-      
-  t3 = +2.0 * (w * z + x * y)
-  t4 = +1.0 - 2.0 * (y * y + z * z)
-  yaw_z = math.atan2(t3, t4)
-      
-  return roll_x, pitch_y, yaw_z # in radians
- 
-def get_marker_centre(marker_id):
-    centre_x1 = (int(corners[marker_id][0][0][0])+int(corners[marker_id][0][1][0]))/2
-    centre_x2 = (int(corners[marker_id][0][2][0])+int(corners[marker_id][0][3][0]))/2
-    centre_x = int((centre_x1+centre_x2)/2)
+pid_distance = PID(0.1, 0, 0, setpoint=DISTANCE_FROM_MARKER)
+pid_distance.sample_time = 0.01
+pid_distance.output_limits = (-3, 0)
 
-    centre_y1 = (int(corners[marker_id][0][0][1])+int(corners[marker_id][0][1][1]))/2
-    centre_y2 = (int(corners[marker_id][0][2][1])+int(corners[marker_id][0][3][1]))/2
-    centre_y = int((centre_y1+centre_y2)/2) 
-    
-    return centre_x, centre_y
-    
-    
-#ARUCO
-dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
-detectorParams = cv2.aruco.DetectorParameters()
-detector = cv2.aruco.ArucoDetector(dictionary, detectorParams)
-aruco_marker_side_length = ARUCO_MARKER_SIZE / (1280/FRAME_DIMENSIONS[0])
+# Initialize camera
+picam2 = start_camera()
 
-    
-# Load the camera parameters from the saved file
-cv_file = cv2.FileStorage(
-    camera_calibration_parameters_filename, cv2.FILE_STORAGE_READ) 
-mtx = cv_file.getNode('K').mat()
-dst = cv_file.getNode('D').mat()
-cv_file.release()
-    
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
-ser.reset_input_buffer()
-time.sleep(2)
+# Initialize ArUco detector
+detector, mtx, dst = start_aruco()
 
+# Initialize video writer
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
+# Initialize Kalman filter
+pose_filter = PoseKalmanFilter()
+
+# Initialize serial communication
+arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+arduino_port.reset_input_buffer()
+time.sleep(2)
+
+# Yaw and pose variables
+current_yaw = 0
+previous_yaw = 0
+yaw_mean = 0
+yaw_mean_list = []
+yaw_combined_list = []
+yaw_corrected = []
+yaw_real = []
+translation_z = 15
 
 while True:
     print("\n")
-    print(f"marker_lost state: {marker_lost}")
-    if aligned_translation:
-        color_of_center = (0,255,0)
-        
-    else:
-        color_of_center = (0,0,255)
-    
-    # Capture frame
+    print(f"Task selection: {select_task}")
+    print(f"Aligned center: {aligned_center}")
+    print(f"Aligned rotation: {aligned_rotation}")
+    print(f"Aligned distance: {aligned_distance}")
+    print(f"Marker lost: {marker_lost}")
+
+    # Capture frame and preprocess
     frame = picam2.capture_array()
-    # Operations on the frame
-    frame = cv2.resize(frame, FRAME_DIMENSIONS)
-    frame = cv2.flip(frame, -1)
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        
-    corners, ids, rejectedImgPoints = detector.detectMarkers(gray)
-    
-    #cv2.rectangle(frame, (centre_of_frame[0] - MARGIN_OF_CENTER , centre_of_frame[1] - MARGIN_OF_CENTER), (centre_of_frame[0] + MARGIN_OF_CENTER , centre_of_frame[1] + MARGIN_OF_CENTER), color_of_center, 3)
-    cv2.line(frame, (centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT , 0), (centre_of_frame[0] - MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_center, 3)
-    cv2.line(frame, (centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT , 0), (centre_of_frame[0] + MARGIN_OF_CENTER_MISALIGNMENT , FRAME_DIMENSIONS[1]), color_of_center, 3)
-    
-    corners, marker_ids, rejectedImgPoints = detector.detectMarkers(gray)
+    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    frame_blurred = cv2.GaussianBlur(frame_gray, (21, 21), 0)
+    serial_port = arduino_port
+
+    # Detect markers
+    corners, marker_ids, rejected_img_points = detector.detectMarkers(frame_gray)
+    frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
 
     if marker_ids is not None:
-        if marker_state_holder == False:
-            marker_state_holder = True
         marker_lost = False
-        
-        
-        frame = cv2.aruco.drawDetectedMarkers(frame, corners, marker_ids, borderColor=(255, 0, 0))
-           # Get the rotation and translation vectors
         rvecs, tvecs, obj_points = cv2.aruco.estimatePoseSingleMarkers(
-        corners,
-        aruco_marker_side_length,
-        mtx,
-        dst)
-        
-      # The pose of the marker is with respect to the camera lens frame.
-      # Imagine you are looking through the camera viewfinder, 
-      # the camera lens frame's:
-      # x-axis points to the right
-      # y-axis points straight down towards the ground
-      # z-axis points straight ahead away from your eye, out of the camera
+            corners, ARUCO_MARKER_SIZE, mtx, dst
+        )
+
+        smoothed_poses, real_yaw, yaw_mean = smooth_pose_estimation(
+            marker_ids, rvecs, tvecs, pose_filter, pre_filter, post_filter
+        )
+
         for i, marker_id in enumerate(marker_ids):
-       
-        # Store the translation (i.e. position) information
-            transform_translation_x = tvecs[i][0][0] 
-            transform_translation_y = tvecs[i][0][1]
-        #multiply by 100 to convert to cm
-            transform_translation_z = tvecs[i][0][2] * 100 
-             
-            # Euler angle format in radians
+            smoothed_pose = smoothed_poses[i]
+            tvec = smoothed_pose[:3]
+            drift_deg, yaw_combined, yaw_deg = smoothed_pose[3:]
 
-            print("transform_translation_x: {}".format(transform_translation_x))
-            print("transform_translation_z: {}".format(transform_translation_z))
-            # Draw the axes on the marker
+            drift_deg = round(drift_deg, 2)
+            yaw_combined = round(yaw_combined, 2)
+            yaw_deg = round(yaw_deg, 2)
+
+            yaw_corrected.append(yaw_deg)
+            yaw_real.append(real_yaw)
+            yaw_mean_list.append(yaw_mean)
+            yaw_combined_list.append(yaw_combined)
+
+            # Distances from tag in cm
+            transform_translation_x = tvec[0] * 100
+            transform_translation_y = tvec[1] * 100
+            translation_z = tvec[2] * 100
+
+            cv2.putText(frame, f"Translation Z: {translation_z:.2f}", (0, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, f"Yaw deg: {yaw_deg:.2f}", (0, 200), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+
+            if translation_z < 50:
+                select_task = 2
+
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
-        try:            
-            centre_x, centre_y = get_marker_centre(0)
-            cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+    else:
+        marker_lost = True
 
-    
+    # Task: Marker alignment
+    if select_task == 2:
+        if marker_ids is not None:
+            marker_lost = False
+            if not marker_state_holder:
+                marker_state_holder = True
+
+            color_of_line = (0, 255, 0) if aligned_center else (0, 0, 255)
+
+            try:
+                centre_x, centre_y = get_marker_centre(0, corners)
+
+                # Show borders for translation alignment of marker
+                cv2.line(frame, (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT, 0),
+                         (CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT, FRAME_DIMENSIONS[1]), color_of_line, 3)
+                cv2.line(frame, (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT, 0),
+                         (CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT, FRAME_DIMENSIONS[1]), color_of_line, 3)
+
+                # Calculate PID values for each movement
+                speed_strafe_pid = int(SPEED_STRAFE + pid_centre(centre_x))
+                speed_drift_pid = int(SPEED_DRIFT + pid_angle(yaw_combined))
+                speed_drive_pid = int(SPEED_DRIVE + pid_distance(translation_z))
+
+                # Alignment of center of robot with marker
+                if centre_x < CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT:
+                    aligned_center = False
+                    last_marker_position = -1
+                    dfu.strafe_left(speed_strafe_pid, serial_port)
+                elif centre_x > CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT:
+                    aligned_center = False
+                    last_marker_position = 1
+                    dfu.strafe_right(speed_strafe_pid, serial_port)
+                else:
+                    aligned_center = True
+
+                # Alignment of rotation of robot with marker
+                if MARGIN_OF_ANGLE < yaw_combined < 90:
+                    aligned_rotation = False
+                    dfu.drift_left(speed_drift_pid, serial_port)
+                elif -90 < yaw_combined < -MARGIN_OF_ANGLE:
+                    aligned_rotation = False
+                    dfu.drift_right(speed_drift_pid, serial_port)
+                else:
+                    aligned_rotation = True
+
+                # Alignment of distance of robot with marker
+                if translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
+                    aligned_distance = False
+                    dfu.drive_forward(speed_drive_pid, serial_port)
+                elif translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
+                    aligned_distance = False
+                    dfu.drive_reverse(speed_drive_pid, serial_port)
+                else:
+                    aligned_distance = True
+
+                # Stop all movement if fully aligned
+                if aligned_center and aligned_rotation and aligned_distance:
+                    dfu.stop_all(serial_port)
+                    print("All aligned")
+
+            except Exception as e:
+                print(e)
+                dfu.stop_all(serial_port)
+
+        # If no marker is detected
+        elif marker_lost:
+            if last_marker_position == 1:
+                dfu.strafe_right(SPEED_STRAFE, serial_port)
+                print("Looking right")
+            elif last_marker_position == -1:
+                dfu.strafe_left(SPEED_STRAFE, serial_port)
+                print("Looking left")
+            elif last_marker_position == 0:
+                print("Looking for marker")
+                dfu.spin_right(SPEED_SPIN, serial_port)
+
+    # Task: Line following
+    elif select_task == 1:
+        masked_image, frame_draw = create_mask(frame, frame_blurred, frame_gray)
+
+        try:
+            contours, max_contour, frame_draw = get_contours(masked_image, frame_draw)
+            if contours:
+                line_angle, frame_draw = get_line_angle(max_contour, frame_draw)
+                offset, frame_draw = get_offset(max_contour, frame_draw)
+                dfu.turn(line_angle, offset, serial_port)
+            else:
+                print("No contours detected")
         except Exception as e:
             print(e)
-            pass
-        
-    # Display the resulting frame
-    cv2.imshow('frame', frame)
+
+    # Display the frame
+    cv2.imshow('Frame', frame)
     out.write(frame)
+
+    # Exit on 'q'
     if cv2.waitKey(1) == ord('q'):
         break
 
-# When everything done, release the capture
-dfu.stop_all(ser)
+# Cleanup
+dfu.stop_all(arduino_port)
 picam2.stop()
 cv2.destroyAllWindows()
+
+#saving data about effect of filtering techniques on marker yaw and exporting as graphs for debugging purposes
+df1 = pd.DataFrame(yaw_real, columns = ["real yaw"])
+df2 = pd.DataFrame(yaw_mean_list, columns = ["mean yaw"])
+df3 = pd.DataFrame(yaw_corrected, columns = ["kalman yaw"])
+df4 = pd.DataFrame(yaw_combined_list, columns = ["combined yaw"])
+
+df1.to_excel("output1.xlsx", index=False)
+df2.to_excel("output2.xlsx", index=False)
+df3.to_excel("output3.xlsx", index=False)
+df4.to_excel("output4.xlsx", index=False)
+
+figure, axis = plt.subplots(2, 2, figsize=(8, 6))
+
+axis[0, 0].plot(yaw_real, label="real yaw", color = "red")
+axis[0, 0].plot(yaw_mean_list, label="median yaw", color = "blue")
+axis[0, 0].set_title("Median Filtering")
+axis[0, 1].plot(yaw_real, label="real yaw", color = "red")
+axis[0, 1].plot(yaw_corrected, label="Kalman-filtered yaw", color = "green")
+axis[0, 1].set_title("Kalman Filtering")
+axis[1, 0].plot(yaw_real, label="real yaw", color = "red")
+axis[1, 0].plot(yaw_combined_list, label="filtered yaw", color = "purple")
+axis[1, 0].plot(yaw_mean_list, label="median yaw", color = "blue")
+axis[1, 0].set_title("Median + Kalman Filtering")
+
+axis[0, 0].legend()
+axis[0, 1].legend()
+axis[0, 0].grid()
+axis[0, 1].grid()
+axis[1, 0].legend()
+axis[1, 0].grid()
+plt.savefig("aruco__kalman_graph0.png")

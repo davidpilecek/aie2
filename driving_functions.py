@@ -6,6 +6,7 @@ zeros_array = [0, 0, 0, 0, 0, 0, 0, 0]
 
 #arduino pinout: FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB
 
+# define all the driving functions
 def drive_forward(speed_drive, serial_port):
     data_array = [speed_drive, speed_drive, speed_drive, speed_drive, 0, 0, 0, 0]
     serial_port.write(bytes(data_array))
@@ -24,16 +25,6 @@ def turn(line_angle, offset, serial_port):
     data_array = [speed_FR, speed_FL, speed_RR, speed_RL, 0, 0, 0, 0]
     serial_port.write(bytes(data_array))
     print("turning")
-
-def turn_left(speed_turn, serial_port):
-    data_array = [speed_turn, 0, speed_turn, 0, 0, 0, 0, 0]
-    serial_port.write(bytes(data_array))
-    print("turning left")
-
-def turn_right(speed_turn, serial_port):
-    data_array = [0, speed_turn, 0, speed_turn, 0, 0, 0, 0]
-    serial_port.write(bytes(data_array))
-    print("turning right")
 
 def strafe_right(speed_strafe, serial_port):
     data_array = [0, speed_strafe, speed_strafe, 0, speed_strafe, 0, 0, speed_strafe]
@@ -69,13 +60,7 @@ def stop_all(serial_port):
     serial_port.write(bytes(zeros_array))
     print("stop")
 
-speed_all = 16
-delay = 1
-
-SPEED_COEF = 0.7
-offset = -0.5
-angle = 0.5
-
+# for testing purposes
 if __name__ == '__main__':
     arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     arduino_port.reset_input_buffer()

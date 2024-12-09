@@ -65,13 +65,14 @@ def get_contours(masked_image, frame_draw):
     return contours, max_contour, frame_draw
 
 def get_line_angle(contour, frame_draw):
+    [vx,vy,x,y] = cv2.fitLine(contour, cv2.DIST_L2,0,0.01,0.01) 
 
-    [vx,vy,x,y] = cv2.fitLine(contour, cv2.DIST_L2,0,0.01,0.01)                         
     lefty = int((-x*vy/vx) + y)
     righty = int(((HEIGHT_OF_IMAGE-x)*vy/vx)+y)
+
     vy = float(vy)
+
     vx = float(vx)
-    
     vx = abs(vx-1)
     
     if vy<0:
@@ -86,6 +87,7 @@ def get_line_angle(contour, frame_draw):
         line_angle = round(line_angle, 2)
     else:
         line_angle = 0
+
     print(f"line_angle: {line_angle}")
 
     cv2.line(frame_draw,(HEIGHT_OF_IMAGE-1,righty),(0,lefty),(0,255,255),5)
@@ -101,6 +103,5 @@ def get_offset(contour, frame_draw):
         offset = round(2 * (center_of_mass[0]-0.5), 2)
         cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
         cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
-
 
     return offset, frame_draw

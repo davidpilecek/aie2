@@ -1,21 +1,17 @@
 #include "SoftPWM.h"
 
-
-//connect only FL, RL to PWM
-
 //front right wheel
 const byte FRA = 5; //B1A right
-const byte FRB = 2; //B2A(B1B) right       !NO PWM!
+const byte FRB = 2; //B2A(B1B) right       
 //rear right wheel
 const byte RRA = 11; //A1B right
-const byte RRB = 12; //A1A right           !NO PWM!
+const byte RRB = 12; //A1A right    
 //rear left wheel
 const byte RLA = 10; // B1A left
 const byte RLB = 9; // B2A(B1B) left      
 //front left wheel
 const byte FLA = 6; //A1B left
 const byte FLB = 3; //A1A left
-
 
 const byte motorPins[] = {FRA, FLA, RRA, RLA, FRB, FLB, RRB, RLB};
 

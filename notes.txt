@@ -1,5 +1,0 @@
-make main file to combine line following with marker alignment
-foolproof losing line when following
-rewrite kalman filter function with tvecs as index 0, 1
-
-rewrite cam start function in all files
