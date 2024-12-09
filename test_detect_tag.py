@@ -7,6 +7,11 @@ import math # Math library
 from libcamera import controls
 import matplotlib
 import matplotlib.pyplot as plt
+
+from kalman import *
+from config import *
+from camera_functions import *
+
 matplotlib.use("Agg")
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')

@@ -233,7 +233,6 @@ while True:
             cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05)
         try:            
             centre_x, centre_y = get_marker_centre(0)
-            cv2.putText(frame, ".", (centre_x, centre_y), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
             SPEED_STRAFE_PID = int(SPEED_STRAFE + pid_centre(centre_x))
             SPEED_ROLL_PID = int(SPEED_ROLL + pid_angle(yaw_deg))
             print(f"SPEED_ROLL_PID: {SPEED_ROLL_PID}")
@@ -291,16 +290,16 @@ while True:
             print(e)
             pass
     else:
-        dfu.stop_all(arduino_port)
         marker_lost = True 
+        dfu.stop_all(arduino_port)
         
     if marker_lost:
         if last_marker_position == 1:
             dfu.strafe_right(SPEED_STRAFE, arduino_port)
-            print("going right")
+            print("looking right")
         elif last_marker_position == -1:
             dfu.strafe_left(SPEED_STRAFE, arduino_port)
-            print("going left")
+            print("looking left")
         elif last_marker_position == 0:
             dfu.spin_left(SPEED_SPIN, arduino_port)
     # Display the resulting frame

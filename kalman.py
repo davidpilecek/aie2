@@ -47,23 +47,22 @@ def smooth_pose_estimation(ids, rvecs, tvecs, pose_filter, pre_filter, post_filt
         # Extract raw measurements (translation and rotation vectors)
         tvec = tvecs[i].flatten()
         rvec = rvecs[i].flatten()
-        median_yaw = 0
+        
         
         # Convert rotation vector to Euler angles (roll, pitch, yaw)
         rotation_matrix, _ = cv2.Rodrigues(rvec)
         euler_angles = cv2.decomposeProjectionMatrix(np.hstack((rotation_matrix, [[0], [0], [0]])))[-1]
         roll, yaw, pitch = euler_angles.flatten()
         
+        median_yaw = yaw
         real_yaw = yaw
         pre_filter.append(real_yaw)
         
         medfilt_input = list(pre_filter)
-        print(f"in:{medfilt_input}")
         post_filter = (scipy.signal.medfilt(medfilt_input, kernel_size = 5))
         
         filtered_list = list(post_filter)
-        print(f"post: {filtered_list}")
-        
+
         if len(post_filter)>4:
             median_yaw = post_filter[4]
         

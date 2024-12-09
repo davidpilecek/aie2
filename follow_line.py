@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 from picamera2 import Picamera2
 from config import *
+from camera_functions import *
 import serial
 import time
 import driving_functions as dfu
@@ -87,7 +88,7 @@ while True:
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
             center_of_mass = (round(cX/WIDTH_OF_IMAGE, 2), round(cY/HEIGHT_OF_IMAGE, 2))
-            offset = round(center_of_mass[0] - 0.5, 2)
+            offset = round(2 * (center_of_mass[0]-0.5), 2)
             cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
             cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
             cv2.line(frame_draw,(HEIGHT_OF_IMAGE,righty),(cX,cY),(0,255,255),5)
@@ -97,11 +98,12 @@ while True:
         speed_RR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
         speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
     
-        print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}")
-        dfu.turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+        print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}, offset: {offset}")
+        dfu.turn(line_angle, offset, arduino_port)
     
     else:
         dfu.stop_all(arduino_port)
+        print("line lost")
         pass
     
     # Display the resulting frame

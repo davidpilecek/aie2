@@ -80,9 +80,12 @@ def get_line_angle(contour, frame_draw):
         vy = vy-1
     else:
         line_angle = 0
-
-    line_angle = np.arctan(vy/vx) * (2/np.pi)
-    line_angle = round(line_angle, 2)
+	
+    if vx !=0:
+        line_angle = np.arctan(vy/vx) * (2/np.pi)
+        line_angle = round(line_angle, 2)
+    else:
+        line_angle = 0
     print(f"line_angle: {line_angle}")
 
     cv2.line(frame_draw,(HEIGHT_OF_IMAGE-1,righty),(0,lefty),(0,255,255),5)
@@ -95,7 +98,7 @@ def get_offset(contour, frame_draw):
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
         center_of_mass = (round(cX/WIDTH_OF_IMAGE, 2), round(cY/HEIGHT_OF_IMAGE, 2))
-        offset = round(center_of_mass[0] - 0.5, 2)
+        offset = round(2 * (center_of_mass[0]-0.5), 2)
         cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
         cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
 

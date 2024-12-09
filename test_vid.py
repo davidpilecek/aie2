@@ -3,9 +3,11 @@ import cv2
 from picamera2 import Picamera2
 from config import *
 from libcamera import controls, Transform
+from camera_functions import *
 
-
-picam2 = start_camera()
+picam2 = Picamera2()
+picam2.configure(picam2.create_video_configuration(transform = Transform(hflip=1, vflip=1)))
+picam2.start()
 
 while True:
     # Capture frame-by-frame

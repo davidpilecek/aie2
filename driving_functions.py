@@ -67,56 +67,7 @@ def spin_right(speed_spin, serial_port):
 
 def stop_all(serial_port):
     serial_port.write(bytes(zeros_array))
-
-
-def align_center(centre_x, speed_strafe, serial_port):
-    if centre_x < CENTRE_OF_FRAME[0] - MARGIN_OF_CENTER_MISALIGNMENT:
-        aligned_center = False
-        last_marker_position = -1
-        strafe_left(speed_strafe, serial_port)
-        
-    elif centre_x > CENTRE_OF_FRAME[0] + MARGIN_OF_CENTER_MISALIGNMENT:
-        aligned_center = False
-        last_marker_position = 1
-        strafe_right(speed_strafe, serial_port)
-        
-    else:
-        last_marker_position = 0
-        aligned_center = True
-        print("translation aligned")
-
-    return aligned_center, last_marker_position
-
-
-def align_distance(transform_translation_z, speed_drive, serial_port):
-    if transform_translation_z > DISTANCE_FROM_MARKER + MARGIN_OF_DISTANCE:
-        aligned_distance = False
-        drive_forward(speed_drive, serial_port)
-        
-    elif transform_translation_z < DISTANCE_FROM_MARKER - MARGIN_OF_DISTANCE:
-        aligned_distance = False
-        drive_reverse(speed_drive, serial_port)
-    else:
-        aligned_distance = True
-        print("distance aligned")
-    return aligned_distance
-
-
-def align_rotation(yaw_deg, speed_drift, serial_port):
-
-    if MARGIN_OF_ANGLE < yaw_deg < 90:
-        aligned_rotation = False
-        drift_left(speed_drift, serial_port)
-        
-    elif -90 < yaw_deg < -MARGIN_OF_ANGLE:
-        aligned_rotation = False
-        drift_right(speed_drift, serial_port)
-       
-    else:
-        aligned_rotation = True
-        print("rotation aligned")
-    return aligned_rotation
-
+    print("stop")
 
 
 speed_all = 16
@@ -130,12 +81,10 @@ if __name__ == '__main__':
     arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     arduino_port.reset_input_buffer()
     time.sleep(2)
-    #speed_FR = int(MAX_SPEED + offset - angle)
-    speed_FR = int(SPEED_COEF - offset - angle)
-    speed_FL = int(SPEED_COEF + offset + angle)
-    speed_RR = int(SPEED_COEF - offset - angle)
-    speed_RL = int(SPEED_COEF + offset + angle)
-    turn(speed_FR, speed_FL, speed_RR, speed_RL, arduino_port)
+    # ~ drive_forward(10, arduino_port)
+    # ~ strafe_left(13, arduino_port)
+    spin_right(11, arduino_port)
+    # ~ drift_right(15, arduino_port)
     
     time.sleep(1)
     stop_all(arduino_port)
