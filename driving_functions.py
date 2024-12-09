@@ -69,7 +69,6 @@ def stop_all(serial_port):
     serial_port.write(bytes(zeros_array))
     print("stop")
 
-
 speed_all = 16
 delay = 1
 
@@ -81,12 +80,12 @@ if __name__ == '__main__':
     arduino_port = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     arduino_port.reset_input_buffer()
     time.sleep(2)
-    # ~ drive_forward(10, arduino_port)
-    # ~ strafe_left(13, arduino_port)
-    spin_right(11, arduino_port)
-    # ~ drift_right(15, arduino_port)
-    
+    for PWM_dutycycle in range(20):
+        print(PWM_dutycycle)
+        drive_forward(PWM_dutycycle, arduino_port)
+        time.sleep(1)
+
+
     time.sleep(1)
     stop_all(arduino_port)
-    quit()    
-    
+    quit()
