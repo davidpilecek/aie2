@@ -36,7 +36,7 @@ marker_lost = True
 
 last_marker_position = 0             # -1 = left, 1 = right, 0 = no marker seen
 
-select_task = 1                      # no tasks = 0; line following = 1; marker alignment = 2
+select_task = 2                      # no tasks = 0; line following = 1; marker alignment = 2
 
 
 # PID settings for each parameter of marker alignment
@@ -132,18 +132,21 @@ while True:
                 transform_translation_y = tvec[1] * 100
                 translation_z = tvec[2] * 100
 
-                cv2.putText(frame, f"translation z: {translation_z:.2f}", (0, 150),
-                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
-                cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200),
-                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                # ~ cv2.putText(frame, f"translation z: {translation_z:.2f}", (0, 150),
+                             # ~ cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
+                # ~ cv2.putText(frame, f"yaw deg: {yaw_deg:.2f}", (0, 200),
+                             # ~ cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2, cv2.LINE_AA)
                 
                 # if marker is close enough, switch to alignment task
-                if translation_z < 50:
+                if select_task == 1 and translation_z < 50:
                     select_task = 2
                 
                 cv2.drawFrameAxes(frame, mtx, dst, rvecs[i], tvecs[i], 0.05) 
         else:
             marker_lost = True  
+    if select_task == 0:
+        dfu.stop_all(arduino_port)
+        
     # alignment task   
     if select_task == 2:
 
@@ -230,13 +233,18 @@ while True:
     # line following task
     elif select_task == 1:
         masked_image, frame_draw = create_mask(frame, frame_blurred, frame_gray)
+        frame_draw0 = frame_draw
         try:
             contours, max_contour, frame_draw = get_contours(masked_image, frame_draw)
+            frame_draw1 = frame_draw
             # if contours are found, get angle and offset and send to arduino
             if len(contours)>0:
                 line_angle, frame_draw = get_line_angle(max_contour, frame_draw)  
+                frame_draw2 = frame_draw
                 offset, frame_draw = get_offset(max_contour, frame_draw)
+                frame_draw3 = frame_draw
                 dfu.turn(line_angle, offset, arduino_port)
+
             else:
                 print("no contours")
                 dfu.stop_all(arduino_port)
@@ -252,7 +260,17 @@ while True:
     out.write(frame)
     # if q key pressed, break loop and stop process
     if cv2.waitKey(1) == ord('q'):
+        #cv2.imwrite("/home/pi/Desktop/aie2/pics/frameAr.jpg", frame)
+        # ~ cv2.imwrite("/home/pi/Desktop/aie2/pics/blur.jpg", frame_blurred)
+        # ~ cv2.imwrite("/home/pi/Desktop/aie2/pics/gray.jpg", frame_gray)
+        # ~ cv2.imwrite("/home/pi/Desktop/aie2/pics/masked.jpg", masked_image)
+        #cv2.imwrite("/home/pi/Desktop/aie2/pics/draw0Ar.jpg", frame)
+        cv2.imwrite("/home/pi/Desktop/aie2/pics/draw1Ar.jpg", frame)
+        # ~ cv2.imwrite("/home/pi/Desktop/aie2/pics/draw2.jpg", frame_draw2)
+        # ~ cv2.imwrite("/home/pi/Desktop/aie2/pics/draw3.jpg", frame_draw3)
         break
+
+
 
 dfu.stop_all(arduino_port)
 picam2.stop()

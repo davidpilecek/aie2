@@ -6,18 +6,19 @@ from camera_functions import *
 import serial
 import time
 import driving_functions as dfu
-from scipy.spatial.transform import Rotation as R
-
-import math
-import matplotlib
-import matplotlib.pyplot as plt
 
 from libcamera import controls, Transform
 from simple_pid import PID
 
+import os
 
-picam2 = start_camera()
 
+picam2 = Picamera2()
+picam2.configure(picam2.create_video_configuration(main = {"size": FRAME_DIMENSIONS}, transform = Transform(hflip=1, vflip=1)))
+picam2.start()
+frame = picam2.capture_array()
+frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+cv2.imwrite("/home/pi/Desktop/aie2/pics/frame.jpg", frame)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 360))
 
@@ -52,12 +53,12 @@ while True:
     match_mask_color = [255, 255, 255]
     cv2.fillPoly(mask_black, vertices, match_mask_color)
     masked_image = cv2.bitwise_and(mask, mask_black)
-    frame_draw = frame
+    frame_draw1 = frame
 
     try:
         contours, hierarchy = cv2.findContours(masked_image, cv2.RETR_TREE ,cv2.CHAIN_APPROX_NONE)
         contour = max(contours, key = cv2.contourArea, default=0)
-        cv2.drawContours(frame_draw, [contour], -1, (0, 255, 0), -1)
+        cv2.drawContours(frame_draw1, [contour], -1, (0, 255, 0), -1)
         [vx,vy,x,y] = cv2.fitLine(contour, cv2.DIST_L2,0,0.01,0.01)                         
         lefty = int((-x*vy/vx) + y)
         righty = int(((HEIGHT_OF_IMAGE-x)*vy/vx)+y)
@@ -89,18 +90,10 @@ while True:
             cY = int(M["m01"] / M["m00"])
             center_of_mass = (round(cX/WIDTH_OF_IMAGE, 2), round(cY/HEIGHT_OF_IMAGE, 2))
             offset = round(2 * (center_of_mass[0]-0.5), 2)
-            cv2.putText(frame_draw, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
-            cv2.putText(frame_draw, f"{offset}", (cX, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
-            cv2.line(frame_draw,(HEIGHT_OF_IMAGE,righty),(cX,cY),(0,255,255),5)
+            cv2.putText(frame_draw1, f".", (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 0, 0), 10)
+            cv2.putText(frame_draw1, f"{offset}", (cX-50, cY-50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 3)
+            cv2.line(frame_draw1,(HEIGHT_OF_IMAGE,righty),(cX,cY),(0,255,255),5)
 
-        speed_FR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
-        speed_FL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
-        speed_RR = int(MAX_SPEED * (SPEED_COEF - offset*OFFSET_COEF - line_angle*ANGLE_COEF))
-        speed_RL = int(MAX_SPEED * (SPEED_COEF + offset*OFFSET_COEF + line_angle*ANGLE_COEF))
-    
-        print(f"FR: {speed_FR}, FL {speed_FL}, RR: {speed_RR}, RL: {speed_RL}, offset: {offset}")
-        dfu.turn(line_angle, offset, arduino_port)
-    
     else:
         dfu.stop_all(arduino_port)
         print("line lost")
@@ -111,9 +104,20 @@ while True:
     out.write(frame)
     
     if cv2.waitKey(1) == ord('q'):
-        break
-        
 
+        cv2.imwrite("/home/pi/Desktop/aie2/pics/blur.jpg", frame_blurred)
+        cv2.imwrite("/home/pi/Desktop/aie2/pics/gray.jpg", frame_gray)
+        cv2.imwrite("/home/pi/Desktop/aie2/pics/masked.jpg", masked_image)
+        cv2.imwrite("/home/pi/Desktop/aie2/pics/draw0.jpg", mask)
+      #  cv2.imwrite("/home/pi/Desktop/aie2/pics/draw1.jpg", frame_draw1)
+        #cv2.imwrite("/home/pi/Desktop/aie2/pics/draw2.jpg", frame_draw1)
+        cv2.imwrite("/home/pi/Desktop/aie2/pics/draw3.jpg", frame_draw1)
+        break
+      
+
+
+
+    
 # When everything done, release the capture
 picam2.stop()
 cv2.destroyAllWindows()
